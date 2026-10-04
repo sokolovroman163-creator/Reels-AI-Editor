@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
+  <mime-type type="application/x-drift-project">
+    <comment>Drift project</comment>
+    <glob pattern="*.drift"/>
+    <magic priority="50">
+      <match type="string" offset="0" value="DRIFTPRJ"/>
+    </magic>
+    <icon name="org.cutwire.Drift"/>
+  </mime-type>
+</mime-info>

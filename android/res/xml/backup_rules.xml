@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Auto Backup (API 28-30). Drift's app-data directory holds the project files the user
+     would want restored *and* several caches that are rebuildable and unbounded: reversed
+     clip proxies, segmentation mattes, face tracks, denoise snippets, and downloaded addon
+     packages. Backing those up pushes a few GB at the 25 MB quota, which makes the backup
+     fail wholesale — including the projects, which are the only part worth keeping. -->
+<full-backup-content>
+    <exclude domain="file" path="reversed" />
+    <exclude domain="file" path="mattes" />
+    <exclude domain="file" path="facetracks" />
+    <exclude domain="file" path="denoised" />
+    <exclude domain="file" path="addons" />
+    <exclude domain="file" path="cache" />
+    <exclude domain="file" path="emoji" />
+    <!-- The two directories that actually blow the quota. `imports` is a byte-for-byte copy of
+         every media file ever picked through SAF (AssetLibrary::importsDir) and `projects` holds
+         media unpacked out of .drift bundles (AppController::sweepExtractionDirs, which already
+         deletes it when no recent project needs it). Neither is authoritative: the .drift file
+         lives in a user-chosen SAF location outside app data, and restoreMissingSources()
+         repoints a project whose copies are gone. -->
+    <exclude domain="file" path="imports" />
+    <exclude domain="file" path="projects" />
+    <exclude domain="external" path="." />
+</full-backup-content>

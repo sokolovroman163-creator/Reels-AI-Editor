@@ -1,0 +1,41 @@
+name: Reels AI Android
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, reels-ai-editor]
+    paths-ignore: ['**.md', 'docs/**', 'LICENSE']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: reels-ai-android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  baseline:
+    name: Unmodified upstream APK
+    uses: ./.github/workflows/reels-android-build.yml
+    with:
+      source_repository: CutWire-Studios/Drift
+      source_ref: aac45890d7191d107f1122e1dde8daf9f120b5cf
+      package_name: org.cutwire.drift
+      app_name: Drift
+      artifact_name: Drift-upstream-arm64-v8a
+    # Baseline always uses a disposable test key, never our release key.
+
+  reels:
+    name: Reels AI identity APK
+    needs: baseline
+    uses: ./.github/workflows/reels-android-build.yml
+    with:
+      source_repository: ${{ github.repository }}
+      source_ref: ${{ github.sha }}
+      package_name: app.reelsai.editor
+      app_name: Reels AI Editor
+      artifact_name: ReelsAI-arm64-v8a
+    secrets:
+      ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}

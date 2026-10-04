@@ -1,0 +1,32 @@
+name: Other
+description: Questions, packaging help, docs, or anything that isn't a bug or feature request
+title: "[Other]: "
+labels: ["question"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this for anything that doesn't fit Bug report or Feature request.
+
+        If this is about a bug or missing feature, check the [unreleased changelog](https://github.com/CutWire-Studios/Drift/blob/main/CHANGELOG.md) first — it may already be fixed or added on `main`.
+
+  - type: dropdown
+    id: topic
+    attributes:
+      label: What is this about?
+      options:
+        - Question / how do I…
+        - Packaging / install help
+        - Documentation
+        - Something else
+    validations:
+      required: true
+
+  - type: textarea
+    id: details
+    attributes:
+      label: Tell us more
+      description: What do you need, and any context that might help (OS, install method, screenshots, etc.).
+      placeholder: Write your question or note here…
+    validations:
+      required: true

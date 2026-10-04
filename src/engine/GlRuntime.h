@@ -1,0 +1,605 @@
+#pragma once
+
+// Internal to the engine's GL code. Owns the process-wide offscreen OpenGL
+// context, the compiled-program cache, the framebuffer pool and the static
+// texture cache, and runs one GPU package's passes.
+//
+// Shared by GpuEffectExecutor (effects/transitions as QImage -> QImage) and
+// GpuCompositor (whole-frame compositing that never leaves the GPU). Not a
+// public API — do not include from outside src/engine.
+
+#include "GpuEffectDefinition.h"
+#include "GpuStatus.h"
+#include "ModelAsset.h"
+#include "PreviewVideoFrame.h"
+#include "core/Time.h"
+
+#include <QVector4D>
+#include <QByteArray>
+#include <QElapsedTimer>
+#include <QImage>
+#include <QMap>
+#include <QMutex>
+#include <QOpenGLExtraFunctions>
+#include <QOpenGLFramebufferObject>
+#include <QOpenGLShaderProgram>
+#include <QSize>
+#include <QString>
+#include <QStringList>
+#include <QVariant>
+#include <QVector>
+
+#include <QThread>
+
+#include <cstdint>
+#include <functional>
+#include <list>
+#include <map>
+#include <memory>
+#include <unordered_map>
+#include <vector>
+
+class QOffscreenSurface;
+class QOpenGLContext;
+struct SwsContext;
+
+namespace drift {
+struct DepthFrame;
+}
+
+namespace drift::skia {
+class SkiaRuntime;
+}
+
+namespace drift::gl {
+
+#if defined(Q_OS_WIN)
+class D3d11GlInterop;
+#endif
+
+// A framebuffer plus its size. Owns the FBO; hand it back to GlRuntime with
+// releaseTarget() so it can be recycled rather than freed.
+struct GlTarget
+{
+    std::unique_ptr<QOpenGLFramebufferObject> fbo;
+    int width = 0;
+    int height = 0;
+    bool hasDepth = false;
+
+    GlTarget() = default;
+    GlTarget(GlTarget &&) noexcept = default;
+    GlTarget &operator=(GlTarget &&) noexcept = default;
+    GlTarget(const GlTarget &) = delete;
+    GlTarget &operator=(const GlTarget &) = delete;
+
+    bool isValid() const { return fbo && fbo->isValid(); }
+    GLuint texture() const { return fbo ? fbo->texture() : 0; }
+    QSize size() const { return QSize(width, height); }
+};
+
+// GPU upload of a ModelAsset. Owned by GlRuntime::models; torn down in shutdown().
+struct GlModelGpu
+{
+    QString key; // "absolutePath:mtimeMs"
+    GLuint vao = 0;
+    GLuint vbo = 0;
+    GLuint ibo = 0;
+    QVector<GLuint> textures; // parallel to ModelAsset::images
+    std::shared_ptr<const ModelAsset> cpu;
+    size_t vramBytes = 0;
+    // The unbaked rig (ModelAsset::rig), uploaded on the first model-clip draw of an animated
+    // file: 16-float vertices plus a 4×N RGBA32F palette texture the skinning shader reads.
+    GLuint rigVao = 0;
+    GLuint rigVbo = 0;
+    GLuint rigIbo = 0;
+    GLuint paletteTex = 0;
+    int paletteRows = 0;
+};
+
+struct CompiledPass
+{
+    std::unique_ptr<QOpenGLShaderProgram> program;
+
+    CompiledPass() = default;
+    CompiledPass(CompiledPass &&) noexcept = default;
+    CompiledPass &operator=(CompiledPass &&) noexcept = default;
+    CompiledPass(const CompiledPass &) = delete;
+    CompiledPass &operator=(const CompiledPass &) = delete;
+};
+
+struct CompiledEffect
+{
+    QString id;
+    QString sourceSig;
+    std::vector<CompiledPass> passes;
+    bool ok = false;
+};
+
+class GlRuntime
+{
+public:
+    // Presentation targets rotated between the compositor and the scene graph. Public so
+    // GpuCompositor can static_assert the in-flight composite cap against it: every composite
+    // that may be running at once needs a slot, plus one for the frame still on screen.
+    static constexpr int kPresentRingSize = 3;
+
+    std::unique_ptr<QOpenGLContext> context;
+    std::unique_ptr<QOffscreenSurface> surface;
+    GLuint vao = 0;
+    GLuint vbo = 0;
+    std::unique_ptr<QOpenGLShaderProgram> copyProgram;
+    std::map<QString, CompiledEffect> programs;
+    std::map<QString, GLuint> staticTextures; // absolute path -> GL texture
+
+    // Face Swap source photos. Keyed on "<absolutePath>|<mtimeMs>|<size>", so editing a photo in
+    // place rebuilds the textures instead of serving a stale one. Destroyed in shutdown()
+    // alongside staticTextures.
+    //
+    // Kept apart from staticTextures because those are package assets: staticTexture() uploads
+    // them wrapping, and a photo must clamp — its uv has to line up with the landmark uv the
+    // mesh carries.
+    struct FaceSwapPhotoGpu
+    {
+        GLuint texture = 0; // the photo, unflipped, clamped
+        GLuint lowFreq = 0; // face-relative low-frequency field for the lighting match
+        float aspect = 1.f; // photo height / width, to turn width-normalized landmarks into uv
+    };
+    std::map<QString, FaceSwapPhotoGpu> faceSwapPhotos;
+
+    // Skia's Ganesh context, attached lazily by SkiaRuntime::acquire() and torn down first in
+    // shutdown() — it holds GL objects of its own. shared_ptr rather than unique_ptr so this
+    // header needs only the forward declaration. Null when DRIFT_WITH_SKIA is off.
+    std::shared_ptr<skia::SkiaRuntime> skia;
+
+    // Face-prop GPU uploads. Bounded LRU; destroyed in shutdown() alongside staticTextures.
+    struct ModelCache
+    {
+        std::list<GlModelGpu> lru;
+        std::unordered_map<QString, std::list<GlModelGpu>::iterator> index;
+        size_t totalBytes = 0;
+        static constexpr size_t kMaxModels = 6;
+        static constexpr size_t kMaxBytes = 192ull * 1024 * 1024;
+    };
+    ModelCache models;
+
+    // Static UV sphere for head-proxy occlusion. Built once on first model3d draw.
+    struct HeadProxy
+    {
+        GLuint vao = 0;
+        GLuint vbo = 0;
+        GLuint ibo = 0;
+        int indexCount = 0;
+    };
+    HeadProxy headProxy;
+
+    // Warped MediaPipe face mesh. VBO is STREAM-updated every frame; IBO is STATIC and rebuilt
+    // when the rest-pose .bin path changes. Destroyed with the other model GL objects.
+    struct FaceMeshGpu
+    {
+        GLuint vao = 0;
+        GLuint vbo = 0;
+        GLuint ibo = 0;
+        int indexCount = 0;
+        int vertexCount = 0;
+        QString path;
+    };
+    FaceMeshGpu faceMesh;
+
+    // Face Swap's mesh. A separate slot rather than sharing faceMesh: the two carry different
+    // topologies and different vertex layouts, so one clip using both effects would rebuild the
+    // buffers twice per frame.
+    FaceMeshGpu faceSwapMesh;
+
+    // "geometry": "face111" package passes: GPUPixel's 111-point mesh, landmark position plus
+    // reference uv per vertex. The IBO is static; the VBO is rewritten for every pass that draws.
+    FaceMeshGpu face111Mesh;
+
+    // Depth maps uploaded for "requires": "depth" packages, most recent first. A frame is used by
+    // every depth effect on its clip and by the preview and export of the same timestamp, so a
+    // handful covers it. Destroyed in shutdown() alongside staticTextures.
+    struct DepthTexture
+    {
+        quint64 key = 0;
+        GLuint texture = 0;
+    };
+    std::list<DepthTexture> depthTextures;
+    static constexpr size_t kMaxDepthTextures = 4;
+
+    // A QOpenGLContext has thread affinity and can only be made current on the
+    // thread it lives on, but GL work arrives from several threads (the
+    // compositor worker, the export job, tools and tests). So the context lives
+    // on one dedicated GL thread and every caller hands it a job to run there.
+    // This also serializes GL, which is why there is no mutex around the context.
+    //
+    // Runs fn on the GL thread with the context current. Returns false if OpenGL
+    // is unavailable, in which case fn does not run.
+    bool exec(const std::function<void()> &fn);
+
+    // True when a context could be created. Safe to call from any thread.
+    bool available();
+
+    // True when this context landed in the Qt Quick scene graph's share group, so a
+    // texture *name* from here resolves in the scene graph's context.
+    bool sharesWithGuiContext();
+
+    QOpenGLExtraFunctions *functions();
+
+    // Compiled programs are cached by key + source signature.
+    CompiledEffect *compile(const QString &cacheKey, const drift::GpuEffectDefinition &gpu);
+
+    // Compiles every pass into throwaway programs, leaving the cache alone, and appends each
+    // driver log to `errors`. Returns false when OpenGL is unavailable and nothing was checked.
+    bool validateProgram(const drift::GpuEffectDefinition &gpu, QStringList *errors);
+
+    // Framebuffers are recycled by size (and depth attachment): allocating a fresh FBO per
+    // effect per frame churns GPU memory during steady-state playback. wantDepth is only set
+    // for the model3d overlay — every other caller keeps the default.
+    GlTarget acquireTarget(int width, int height, bool wantDepth = false);
+    void releaseTarget(GlTarget &&target);
+
+    // glFinish then read the FBO. Apple's GL can hand toImage() a half-resolved
+    // tile without this, so two scrubs of the same timestamp would not match.
+    QImage readTarget(const GlTarget &target);
+
+    // Export NV12 ring. Convert the composited (premultiplied) canvas to BT.709
+    // limited NV12 and pack into a PIXEL_PACK_BUFFER without waiting. `slot` is
+    // 0 .. kExportNv12Slots-1. The GL context must be current (call from exec()).
+    static constexpr int kExportNv12Slots = 3;
+    // `readback` false skips the PIXEL_PACK_BUFFER half: the planes are left in their GL
+    // textures for copyNv12SlotToCuda to take device-side, which is the whole point of that
+    // path. mapNv12Slot then has nothing to map, so the two are not interchangeable per frame.
+    bool packCanvasToNv12Slot(const GlTarget &canvas, int outW, int outH, int slot,
+                              bool readback = true);
+    // Wait for packCanvasToNv12Slot(slot), then copy Y and interleaved UV. Strides
+    // are bytes per row. The GL context must be current.
+    bool mapNv12Slot(int slot, uint8_t *y, int yStride, uint8_t *uv, int uvStride, int width,
+                     int height);
+    // The same planes straight into an AV_PIX_FMT_CUDA frame's device memory, never touching
+    // system memory. `dst` must be an NV12-backed CUDA frame of exactly this slot's size,
+    // allocated from the encoder's own frames context. False means the caller should fall back
+    // to packCanvasToNv12Slot + mapNv12Slot.
+    bool copyNv12SlotToCuda(int slot, AVFrame *dst);
+
+    // Presentation ring. The preview's composited frame is handed to the Qt Quick
+    // scene graph as a live GL texture rather than read back, so the target it
+    // lives in cannot go back to the general pool while the scene graph samples
+    // it. Rotating through a few targets gives the scene graph time to finish
+    // with one before it is drawn into again.
+    // Waits on the slot's previous publish fence before returning it for redraw.
+    GlTarget &acquirePresentTarget(int width, int height);
+
+    // After composing into a present target: flush + fence. Call before publishing
+    // the texture id so the scene graph never samples a half-drawn frame, without
+    // the full-pipeline stall of glFinish.
+    void markPresentReady(GlTarget &presentTarget);
+
+    // Compile (once) and return an arbitrary fragment shader program, keyed by id.
+    // Used for the compositor's own shaders, which are not package-defined.
+    QOpenGLShaderProgram *builtinProgram(const QString &id, const char *vertexSource,
+                                         const char *fragmentSource);
+    // `geom` may be nullptr. Cache key is `id` alone — do not reuse an id with different sources.
+    QOpenGLShaderProgram *builtinProgram(const QString &id, const char *vertexSource,
+                                         const char *fragmentSource, const char *geom);
+    // `fragmentExtensions` is a block of #extension directives injected ahead of the default
+    // precision qualifiers, which is the only legal place for them. nullptr for none.
+    QOpenGLShaderProgram *builtinProgram(const QString &id, const char *vertexSource,
+                                         const char *fragmentSource, const char *geom,
+                                         const char *fragmentExtensions);
+
+    // Drop the recyclable GPU memory — the uploaded-image texture cache and the framebuffer pool —
+    // without touching the context, the compiled programs or the live present ring. For the Android
+    // application-state handler; a no-op when GL was never brought up. Call from the GUI thread
+    // (or any non-GL thread) — exec() blocks on the GL thread.
+    void releaseCaches();
+
+    // Set by the paused-preview render for the duration of one composite; everything else
+    // (playback, export, thumbnails) leaves it clear. GL thread only.
+    bool cacheVideoSources = false;
+
+    // Tear down GL objects and stop the GL thread. Called at app exit.
+    void shutdown();
+
+    // Last preview import path, and the latest reason a zero-copy importer (CUDA, VAAPI, D3D11)
+    // declined a frame, for the debug report.
+    enum class PreviewUploadPath {
+        None,
+        CudaInterop,
+        VaapiDmaBuf,
+        MediaCodecImage,
+        D3d11Interop,
+        CpuRoundTrip
+    };
+    static PreviewUploadPath lastPreviewUploadPath();
+    static QString lastZeroCopyDeclineReason();
+    // For drift::diag::ProbeScope alone: put both back after a diagnostics sweep has imported
+    // its own frames through the same globals. Importers record; nobody else should.
+    static void restorePreviewUploadPath(PreviewUploadPath path, const QString &declineReason);
+
+    // Outcome of the last bring-up attempt. Safe from any thread, and never starts
+    // one itself — call available() first if you want an attempt made rather than a
+    // snapshot of what already happened.
+    static drift::gl::GlStatusInfo lastStatus();
+
+private:
+    bool ensureReady();
+    bool initGlObjects();
+    // True when the slot is safe to redraw. A timed-out fence is left in place
+    // so the next acquire can wait again instead of clearing a live texture.
+    bool waitPresentFence(int slotIndex, GLuint64 timeoutNs);
+    GlTarget &preparePresentSlot(int slotIndex, int width, int height);
+    bool waitVideoPboFence(QOpenGLExtraFunctions *gl, int index);
+    // Blocks until the GPU has consumed the `count` most recent plane uploads.
+    // Only the limited-preview Intel parts need it — see m_limitedPreviewGpu.
+    bool waitLatestVideoUploads(QOpenGLExtraFunctions *gl, int count);
+    void destroyImageUploadCache();
+    void destroyVideoUploadState();
+    void destroyExportNv12State();
+    void destroyExportNv12Slot(int slot);
+    void unregisterExportCudaResources(int slot);
+    bool ensureExportNv12Slot(QOpenGLExtraFunctions *gl, int slot, int width, int height);
+    bool ensureVideoUploadTextures(QOpenGLExtraFunctions *gl, int width, int height);
+    bool ensureVideoRgbaTexture(QOpenGLExtraFunctions *gl, int width, int height);
+    bool uploadPlanePbo(QOpenGLExtraFunctions *gl, GLuint texture, int texW, int texH, GLenum internalFormat,
+                        GLenum format, const uint8_t *src, int srcPitch, int packedWidth);
+    void unregisterCudaResources();
+    bool importCudaNv12(QOpenGLExtraFunctions *gl, const AVFrame *frame);
+    // Texture names for importers whose storage comes from the imported surface rather than
+    // from glTexImage2D. Kept apart from m_videoY/m_videoUV: a later PBO frame reusing those
+    // would glTexSubImage2D straight into the decoder's dma-buf.
+    bool ensureImportTextureNames(QOpenGLExtraFunctions *gl);
+    bool importVaapiNv12(QOpenGLExtraFunctions *gl, const AVFrame *frame);
+    // Binds a latched MediaCodec gralloc buffer as a GL external texture. Android only; false
+    // everywhere else and on any device whose EGL/GLES lacks the extensions. Writes the picture's
+    // sub-rectangle of the buffer into `crop` as (offsetU, offsetV, scaleU, scaleV).
+    bool importMediaCodecImage(QOpenGLExtraFunctions *gl, const AVFrame *frame, GLuint *texture,
+                               QVector4D *crop);
+    // D3D11VA surface through WGL_NV_DX_interop2 into a Y/UV texture pair for the convert shader.
+    // Windows only; false everywhere else. On true the textures stay locked for GL until
+    // unlockD3d11Import(), which has to follow the draw that samples them.
+    bool importD3d11Nv12(QOpenGLExtraFunctions *gl, const AVFrame *frame, GLuint *texY, GLuint *texUV);
+    void unlockD3d11Import();
+    AVFrame *ensureSoftwareNv12(const AVFrame *src);
+
+    QMutex m_initMutex;
+    // Only a driver's own verdict is final. A missing share context just means Qt
+    // Quick has not built one yet, so that attempt is retried rather than latched.
+    bool m_failedPermanently = false;
+    QElapsedTimer m_lastAttempt;
+    bool m_ok = false;
+    bool m_sharesWithGui = false;
+    QThread *m_glThread = nullptr;
+    QObject *m_glOwner = nullptr; // lives on m_glThread; the invoke target
+
+    std::multimap<uint64_t, std::unique_ptr<QOpenGLFramebufferObject>> m_targetPool;
+    size_t m_pooledTargets = 0;
+    static constexpr size_t kMaxPooledTargets = 32;
+
+    GlTarget m_presentRing[kPresentRingSize];
+    GLsync m_presentFence[kPresentRingSize] = {};
+    int m_presentNext = 0;
+    // Slot last handed to the scene graph. acquirePresentTarget never returns it,
+    // so fillBackground cannot clear the texture still on screen.
+    int m_presentDisplayed = -1;
+    GlTarget m_invalidPresent;
+    // Publishes so far, and the FBOs a resize evicted from the ring paired with the count at
+    // which each left. PreviewItem hands the scene graph the raw texture name out of a slot,
+    // so destroying that slot's FBO the moment the canvas size changes pulls the texture out
+    // from under a node that is still drawing it — which is a black frame. Retired FBOs are
+    // freed kPresentRingSize publishes later instead, the same bound GpuCompositor already
+    // static_asserts the in-flight composite cap against.
+    quint64 m_presentPublished = 0;
+    std::vector<std::pair<quint64, std::unique_ptr<QOpenGLFramebufferObject>>> m_retiredPresent;
+
+    // QImage::cacheKey() → uploaded texture. Stills/text/shapes and decoder cache
+    // hits skip CPU→GPU upload; callers blit into a pooled FBO for exclusive use.
+    struct CachedUpload
+    {
+        qint64 cacheKey = 0;
+        GLuint texture = 0;
+        int width = 0;
+        int height = 0;
+    };
+    std::unordered_map<qint64, std::list<CachedUpload>::iterator> m_imageUploadIndex;
+    std::list<CachedUpload> m_imageUploadLru;
+    static constexpr size_t kMaxCachedUploads = 48;
+
+    // Converted RGBA of recent preview video frames, keyed by the decoded frame object itself:
+    // a paused playhead gets the same AVFrame back from the reader's cache on every composite,
+    // so an effect tweak skips the upload and the YUV convert. The weak_ptr is what makes the
+    // pointer a safe key — while it is live, no other frame can occupy that address.
+    struct CachedVideoSource
+    {
+        std::weak_ptr<AVFrame> frame;
+        const AVFrame *raw = nullptr;
+        int rotation = 0;
+        int colorspace = 0;
+        int colorRange = 0;
+        GlTarget target;
+    };
+    std::list<CachedVideoSource> m_videoSourceLru;
+#ifdef Q_OS_ANDROID
+    static constexpr size_t kMaxCachedVideoSources = 2;
+#else
+    static constexpr size_t kMaxCachedVideoSources = 4;
+#endif
+
+    // The Y/UV pair the current layer uploads into, and its CUDA registration: a view of one
+    // entry in m_uploadSlots, chosen by ensureVideoUploadTextures().
+    GLuint m_videoY = 0;
+    GLuint m_videoUV = 0;
+    int m_videoTexW = 0;
+    int m_videoTexH = 0;
+
+    // Upload textures per layer instead of one shared pair. With one pair, every layer of a
+    // frame wrote into the texture the previous layer's convert draw was still reading, so the
+    // driver serialised them, and two layers of different sizes deleted and recreated the pair
+    // (and re-registered it with CUDA) on every layer of every frame. Slots are kept per size and
+    // handed out least recently used first, so consecutive layers never share one.
+    struct VideoUploadSlot
+    {
+        GLuint y = 0;
+        GLuint uv = 0;
+        int w = 0;
+        int h = 0;
+        void *cudaY = nullptr;
+        void *cudaUv = nullptr;
+        AVBufferRef *cudaDevice = nullptr;
+        int cudaW = 0;
+        int cudaH = 0;
+        quint64 lastUse = 0;
+    };
+    std::vector<VideoUploadSlot> m_uploadSlots;
+    int m_currentUploadSlot = -1;
+    quint64 m_uploadUseCounter = 0;
+    static constexpr int kUploadSlotsPerSize = 3;
+    static constexpr int kMaxUploadSlots = 8;
+    void stashCurrentUploadSlot();
+    void selectUploadSlot(int index);
+    void releaseUploadSlot(QOpenGLExtraFunctions *gl, int index);
+    void releaseUploadSlots(QOpenGLExtraFunctions *gl);
+
+    GLuint m_videoRgba = 0;
+    int m_videoRgbaW = 0;
+    int m_videoRgbaH = 0;
+    // Two planes per software layer × up to four layers × two in-flight composites. A two-PBO
+    // ring reused both buffers inside one frame, so the next upload remapped a PBO the GPU was
+    // still reading and the convert shader sampled empty chroma (green). Four was one layer's
+    // worth: a third software layer wrapped the ring inside a single frame and blocked the GL
+    // thread on its own previous upload. The per-buffer fences below keep the uploads
+    // pipelined: a buffer is only remapped once its own upload has landed.
+    static constexpr int kVideoPboCount = 16;
+    GLuint m_videoPbo[kVideoPboCount] = {};
+    GLsync m_videoPboFence[kVideoPboCount] = {};
+    int m_videoPboIndex = 0;
+    // Sandy/Ivy Intel: the driver lets the convert shader sample a PBO it has not
+    // finished reading, so this path waits out both plane uploads before drawing.
+    // Every other GPU keeps them in flight — the wait costs a full frame of
+    // pipelining and only these chips need it. Written once on the GL thread when
+    // the context comes up, read on the GL thread while compositing.
+    bool m_limitedPreviewGpu = false;
+    AVFrame *m_hwImportStaging = nullptr;
+    AVFrame *m_importNv12 = nullptr;
+    ::SwsContext *m_importSws = nullptr;
+    void *m_cudaYResource = nullptr;
+    void *m_cudaUvResource = nullptr;
+    // The CUDA device the two resources were registered under. Registrations belong to its
+    // context, so a frame from any other device means registering again; holding the reference
+    // keeps that context alive long enough to unregister from it.
+    AVBufferRef *m_cudaResourceDevice = nullptr;
+    int m_cudaTexW = 0;
+    int m_cudaTexH = 0;
+    bool m_cudaImportFailed = false;
+    // Consecutive map/copy refusals. Cleared by any frame that lands; interop only latches off
+    // once this many in a row say the driver is not going to cooperate.
+    int m_cudaCopyFailures = 0;
+    static constexpr int kCudaCopyFailureLimit = 3;
+    // Whether this context's GL_VENDOR is NVIDIA: -1 not yet asked. CUDA interop is never
+    // attempted against any other GPU's context.
+    int m_cudaGlVendorOk = -1;
+    GLuint m_importY = 0;
+    GLuint m_importUV = 0;
+    bool m_vaapiImportFailed = false;
+#if defined(Q_OS_WIN)
+    std::unique_ptr<D3d11GlInterop> m_d3d11;
+    bool m_d3d11ImportFailed = false;
+#endif
+#ifdef Q_OS_ANDROID
+    GLuint m_mcTexture = 0;
+    bool m_mcImportFailed = false;
+    // EGLImages keyed by AHardwareBuffer. Gralloc recycles a small fixed set of buffers, so the
+    // hit rate is effectively 1 and this saves a driver image allocation on every frame.
+    std::vector<std::pair<void *, void *>> m_mcImageCache;
+#endif
+    // Auto-mode driver verdict: -1 unknown, 0 unverified, 1 verified. Cached because the
+    // answer depends only on the driver, which does not change within a session.
+    int m_vaapiAutoVerified = -1;
+
+    struct ExportNv12Slot
+    {
+        GLuint yTex = 0;
+        GLuint uvTex = 0;
+        GLuint yFbo = 0;
+        GLuint uvFbo = 0;
+        GLuint pbo = 0;
+        GLsync fence = 0;
+        int width = 0;
+        int height = 0;
+        // CUgraphicsResource for the two textures when the NVENC path is in use, and the CUDA
+        // device they were registered under — same rule as the import side: a registration
+        // cannot be mapped from another device's context.
+        void *cudaY = nullptr;
+        void *cudaUv = nullptr;
+        AVBufferRef *cudaDevice = nullptr;
+    };
+    ExportNv12Slot m_exportNv12[kExportNv12Slots];
+
+    friend GLuint cachedUploadTexture(GlRuntime &rt, QOpenGLExtraFunctions *gl, const QImage &image);
+    friend GlTarget promoteVideoFrameToTargetCached(GlRuntime &rt, QOpenGLExtraFunctions *gl,
+                                                    const PreviewVideoFrame &frame);
+    friend GlTarget promoteVideoFrameToTarget(GlRuntime &rt, QOpenGLExtraFunctions *gl,
+                                              const PreviewVideoFrame &frame);
+};
+
+GlRuntime &runtime();
+
+// The fullscreen-quad vertex shader every package pass uses.
+extern const char *const kQuadVertexShader;
+
+GLuint uploadTexture(QOpenGLExtraFunctions *gl, const QImage &image, bool flipVertically = false);
+bool blitTextureToTarget(GlRuntime &rt, QOpenGLExtraFunctions *gl, GLuint srcTex, GlTarget &dest);
+GLuint staticTexture(GlRuntime &rt, QOpenGLExtraFunctions *gl, const QString &path);
+
+// The texture unit the depth map is bound to, clear of the units package inputs count up from.
+// GL 3.3 and GLES 3.0 both guarantee 16 fragment units.
+constexpr int kDepthTextureUnit = 8;
+
+// A single-channel 16-bit texture of a depth frame, uploaded once and cached by DepthFrame::key.
+// R16 where the context has it; GLES without EXT_texture_norm16 gets R16F, which is filterable in
+// core ES 3.0 and keeps about 11 bits — plenty for normalised depth.
+GLuint depthTexture(GlRuntime &rt, QOpenGLExtraFunctions *gl, const drift::DepthFrame &frame);
+
+// Per-layer data a pipeline may bind besides its source textures.
+struct PipelineAux
+{
+    std::shared_ptr<const drift::DepthFrame> depth;
+};
+
+// Upload a QImage into a pooled FBO, so sources, intermediate buffers and the
+// canvas all share one texture orientation. A null image becomes transparent
+// black at fallbackSize.
+GlTarget promoteImageToTarget(GlRuntime &rt, QOpenGLExtraFunctions *gl, const QImage &image,
+                              const QSize &fallbackSize);
+
+// Like promoteImageToTarget, but reuses a cached GL texture when QImage::cacheKey
+// matches a recent upload (decoder/still cache hits). Always returns a fresh
+// pooled FBO the caller may mutate and release.
+GlTarget promoteImageToTargetCached(GlRuntime &rt, QOpenGLExtraFunctions *gl, const QImage &image,
+                                    const QSize &fallbackSize);
+
+// Preview video → RGBA FBO. Hardware CUDA and VAAPI frames stay on the GPU — CUDA copies
+// into the pooled textures on the decoder's own stream, VAAPI imports its dma-buf directly;
+// everything else uploads NV12 through a pooled PBO. Colour and display rotation are applied
+// in the convert shader.
+GlTarget promoteVideoFrameToTarget(GlRuntime &rt, QOpenGLExtraFunctions *gl,
+                                   const PreviewVideoFrame &frame);
+
+// promoteVideoFrameToTarget through the video source cache while GlRuntime::cacheVideoSources
+// is set; with it clear, the cache is emptied and this is the plain promote.
+GlTarget promoteVideoFrameToTargetCached(GlRuntime &rt, QOpenGLExtraFunctions *gl,
+                                         const PreviewVideoFrame &frame);
+
+void setPackageUniforms(QOpenGLShaderProgram *program, const QMap<QString, QVariant> &parameters,
+                        const QSize &resolution, drift::TimeUs timeUs, double progress);
+
+// Run every pass of one GPU package, reading from `sources` and returning a new
+// pooled target with the result. Nothing is read back to the CPU. Returns an
+// invalid target on failure (grace mode).
+//
+// `aux` carries the layer's depth for packages that need it. Without one a depth package still
+// runs, with u_hasDepth = 0, which the prelude helpers turn into a pass-through.
+GlTarget runPipeline(GlRuntime &rt, QOpenGLExtraFunctions *gl, const QString &cacheKey,
+                     const drift::GpuEffectDefinition &gpu, const std::vector<const GlTarget *> &sources,
+                     const QMap<QString, QVariant> &parameters, drift::TimeUs timeUs, double progress,
+                     const QSize &canvasSize, const PipelineAux *aux = nullptr);
+
+} // namespace drift::gl

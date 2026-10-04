@@ -1,0 +1,74 @@
+build
+build-*/
+.cache/
+*.user
+*.user.*
+CMakeLists.txt.user
+
+# Editors
+.vscode/
+.idea/
+*.swp
+/icons/
+
+# Fonts, stickers and Whisper models are addons now — built and published from the drift-addons
+# repo, downloaded at runtime into <AppDataLocation>/addons/. These directories are only local
+# development overrides, pointed at with DRIFT_FONTS_DIR / DRIFT_STICKERS_DIR /
+# DRIFT_WHISPER_MODEL_DIR / DRIFT_FACE_PROPS_DIR, and are never part of a build.
+/fonts/
+stickers/
+emoji-fonts/
+resources/stickers/
+/models/
+/face-props/
+
+# Sample media (kept out of the repo)
+*.mp4
+*.mov
+*.mkv
+*.webm
+*.wav
+*.mp3
+
+# Flatpak build artifacts (build-dir is already covered by build-*/ above)
+.flatpak-builder/
+flatpak/build-dir/
+flatpak/repo/
+flatpak/dist/
+
+# Release build artifacts (produced by .github/workflows/package.yml, and by makepkg /
+# Inno Setup when those are run locally)
+/dist/
+/AppDir/
+/.deps/
+/vcpkg/
+/vcpkg_bincache/
+packaging/arch/src/
+packaging/arch/pkg/
+packaging/arch/*.pkg.tar.zst
+installer/windows/output/
+
+# Nightly channel packaging, derived from the stable definitions by
+# scripts/make-nightly-pkgbuild.sh and scripts/make-nightly-flatpak-manifest.py so a change to
+# the real PKGBUILD or manifest can never be forgotten in a committed copy.
+packaging/arch/nightly/
+flatpak/org.cutwire.Drift.Nightly.yml
+
+# Android native dependencies: third_party/build-android.sh clones FFmpeg, x264, zstd, OpenSSL and
+# SoundTouch into src/ and cross-builds them into prebuilt/android/<abi>/. Both are generated and
+# large (~450 MB of sources, ~270 MB of archives); CI restores prebuilt/ from a cache keyed on the
+# script instead. third_party/cgltf is vendored source and stays tracked.
+third_party/src/
+third_party/prebuilt/
+
+# OS
+.DS_Store
+
+# Compiled Qt translations (generated into the build tree; never commit)
+*.qm
+
+# Local credential files — never commit
+.env
+.env.*
+
+!resources/diagnostics/bench1080p60.mp4

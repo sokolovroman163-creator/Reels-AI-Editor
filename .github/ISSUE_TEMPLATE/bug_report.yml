@@ -1,0 +1,94 @@
+name: Bug report
+description: Something in Drift isn't working as expected
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve Drift. Fill in the fields below.
+        You can attach screenshots or screen recordings on any text box.
+
+        **Before filing:** check the [unreleased changelog](https://github.com/CutWire-Studios/Drift/blob/main/CHANGELOG.md) — the bug may already be fixed on `main` since the last release.
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Linux
+        - Windows
+    validations:
+      required: true
+
+  - type: input
+    id: distro
+    attributes:
+      label: Linux distribution
+      description: Linux only — leave blank on Windows.
+      placeholder: e.g. Ubuntu 24.04, Fedora 42, Arch Linux, openSUSE Tumbleweed
+    validations:
+      required: false
+
+  - type: input
+    id: version
+    attributes:
+      label: Drift version
+      description: Use the release tag / package version you installed.
+      placeholder: e.g. 0.6.0
+    validations:
+      required: true
+
+  - type: dropdown
+    id: variant
+    attributes:
+      label: How did you install Drift?
+      options:
+        - Flatpak
+        - AppImage
+        - Arch (AUR / package)
+        - Windows installer
+        - Built from source
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What went wrong?
+      description: |
+        Write in plain language. Attach screenshots, a short screen recording, or log files if you have them.
+        A useful report usually covers:
+        1. What you were doing
+        2. What you expected
+        3. What actually happened
+        4. Steps to reproduce (if you know them)
+      placeholder: |
+        1. What I was doing:
+        2. What I expected:
+        3. What happened instead:
+        4. Steps to reproduce (optional):
+    validations:
+      required: true
+
+  - type: textarea
+    id: tested_versions
+    attributes:
+      label: Other versions or packages you tried
+      description: |
+        Some bugs only show up in one package (e.g. Flatpak but not AppImage). List anything else you tested, or write "only tried this one".
+      placeholder: |
+        e.g. Broken on Flatpak 0.6.0, works on AppImage 0.6.0
+        or: Only tested Flatpak 0.6.0
+    validations:
+      required: false
+
+  - type: input
+    id: gpu
+    attributes:
+      label: GPU (optional)
+      description: Helpful for preview, export, and effects issues. Example — NVIDIA RTX 3060, AMD Radeon 780M, Intel Arc.
+      placeholder: e.g. NVIDIA GeForce RTX 4060
+    validations:
+      required: false

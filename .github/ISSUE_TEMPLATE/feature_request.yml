@@ -1,0 +1,51 @@
+name: Feature request
+description: Suggest an improvement or new capability for Drift
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for sharing an idea for Drift. Pick a category, then describe what you'd like.
+
+        **Before filing:** check the [unreleased changelog](https://github.com/CutWire-Studios/Drift/blob/main/CHANGELOG.md) — the feature may already be in progress or landed on `main` since the last release.
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: Category
+      options:
+        - New video effect
+        - New audio effect
+        - New transition
+        - UI / workflow improvement
+        - Export / performance
+        - Something else
+    validations:
+      required: true
+
+  - type: textarea
+    id: wish
+    attributes:
+      label: I wish Drift could…
+      description: Describe the feature as if you're telling a friend what you want.
+      placeholder: e.g. …add a beat-synced zoom that follows the music automatically
+    validations:
+      required: true
+
+  - type: textarea
+    id: why
+    attributes:
+      label: Why would this help?
+      description: Optional — when would you use it, or what problem does it solve?
+      placeholder: e.g. I edit short-form videos and spend a lot of time keyframing zooms by hand.
+    validations:
+      required: false
+
+  - type: textarea
+    id: extras
+    attributes:
+      label: Extra details (optional)
+      description: Examples, links, mockups, or similar tools that do this well. Attach images if useful.
+    validations:
+      required: false

@@ -1,0 +1,200 @@
+<?xml version="1.0"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="org.qtproject.example"
+    android:installLocation="auto"
+    android:versionCode="-- %%INSERT_VERSION_CODE%% --"
+    android:versionName="-- %%INSERT_VERSION_NAME%% --">
+    <!-- %%INSERT_FEATURES -->
+    <!-- androiddeployqt substitutes a permissions marker comment wherever it finds one, and this
+         file deliberately has none (which is also why the marker's name is not spelled verbatim
+         anywhere below — the tool matches it as a plain substring). Left in, it injected
+         BLUETOOTH, CAMERA, RECORD_AUDIO and WRITE_EXTERNAL_STORAGE out of Qt6::Multimedia's
+         dependency metadata: there is no QCamera, QAudioSource or QMediaRecorder in src/, and
+         everything read or written arrives as a SAF content:// URI, so none of them had a call
+         site. CAMERA and RECORD_AUDIO also imply required hardware features, which had Play
+         filtering the app off camera-less and mic-less devices. Everything the app does need is
+         declared here; re-check the generated android-build/AndroidManifest.xml after a Qt bump. -->
+    <!-- Explicit network permissions for HTTPS (update check, addon index). -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- QtMultimedia audio output and microphone recording -->
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- Timeline touch feedback. Haptics.java prefers View.performHapticFeedback, which needs no
+         permission at all; this covers the case that route cannot: the one-argument overload does
+         nothing and returns false when the system's touch-feedback setting is off, which several
+         OEM skins ship as the default, and since API 33 there is no flag that overrides it. Without
+         the fallback the feature is simply dead on those devices. Drift's own switch (Settings →
+         Interface → Haptic feedback, off by one tap) is what gates the fallback — the C++ side never reaches the Java
+         at all when it is off. Normal permission: no runtime prompt, no install-time consent. -->
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- A video export runs for minutes in the app process; backgrounded, that process is frozen
+         and then killed. ExportService holds it in the foreground for the length of the render,
+         which costs the service permission plus its media-processing type (API 34+) and the
+         notification permission the platform requires before it will show the progress. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROCESSING" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Media import uses the Storage Access Framework (QFileDialog → ACTION_OPEN_DOCUMENT).
+         Do not add READ_MEDIA_* / READ_EXTERNAL_STORAGE for import — access is granted per
+         content:// URI when the user picks a file. -->
+    <!-- The compositor creates an ES 3.0 context (GlRuntime::initGlObjects) and every shader is
+         translated to #version 300 es. There is no ES 2.0 fallback path, so declaring this as
+         required is honest: on an ES2-only device the preview would fail to initialise. -->
+    <uses-feature android:glEsVersion="0x00030000" android:required="true" />
+    <!-- Nothing here uses a camera, a microphone or Bluetooth, and no permission that would imply
+         them survives above. Declaring them not-required anyway is the belt-and-braces half: an
+         explicit uses-feature overrides the implied-and-required one, so if a future Qt module
+         drags CAMERA or RECORD_AUDIO back in, Play still will not filter the app off devices
+         that lack the hardware. -->
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.microphone" android:required="false" />
+    <uses-feature android:name="android.hardware.bluetooth" android:required="false" />
+    <supports-screens
+        android:anyDensity="true"
+        android:largeScreens="true"
+        android:normalScreens="true"
+        android:smallScreens="true" />
+    <!-- enableOnBackInvokedCallback must stay false. Drift's entire Back story is one Shortcut
+         in AndroidMain.qml that dispatches six branches with side effects — a full-screen clip
+         tool, open menus, modals that deliberately refuse to close, a swallow during an import,
+         then the home/exit step. The predictive-back callback would hand the gesture to the
+         system before any of that ran. -->
+    <application
+        android:name="org.qtproject.qt.android.bindings.QtApplication"
+        android:hardwareAccelerated="true"
+        android:label="-- %%INSERT_APP_NAME%% --"
+        android:icon="-- %%INSERT_APP_ICON%% --"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:enableOnBackInvokedCallback="false"
+        android:largeHeap="true"
+        android:allowBackup="true"
+        android:fullBackupOnly="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules">
+        <activity
+            android:name="org.qtproject.qt.android.bindings.QtActivity"
+            android:configChanges="orientation|uiMode|screenLayout|screenSize|smallestScreenSize|layoutDirection|locale|fontScale|keyboard|keyboardHidden|navigation|mcc|mnc|density"
+            android:label="-- %%INSERT_APP_NAME%% --"
+            android:launchMode="singleTop"
+            android:screenOrientation="unspecified"
+            android:exported="true"
+            android:windowSoftInputMode="adjustResize"
+            android:theme="@style/DriftTheme">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <!-- Open a .drift project from a file manager or a share sheet. There is no
+                 registered MIME type for the format, so match on the extension: the
+                 pathPattern trick below is the documented way to say "*.drift" — Android
+                 treats `.` literally in pathPattern and `*` as "zero or more of the
+                 preceding", so each entry covers one more literal dot in the name. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="content" />
+                <data android:scheme="file" />
+                <data android:mimeType="*/*" />
+                <data android:host="*" />
+                <data android:pathPattern=".*\\.drift" />
+                <data android:pathPattern=".*\\..*\\.drift" />
+                <data android:pathPattern=".*\\..*\\..*\\.drift" />
+            </intent-filter>
+
+            <!-- Open a .driftfx (a Drift Forge effect or transition) the same way. Routed by its
+                 magic bytes rather than this name, since a content:// path rarely has one. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="content" />
+                <data android:scheme="file" />
+                <data android:mimeType="*/*" />
+                <data android:host="*" />
+                <data android:pathPattern=".*\\.driftfx" />
+                <data android:pathPattern=".*\\..*\\.driftfx" />
+                <data android:pathPattern=".*\\..*\\..*\\.driftfx" />
+            </intent-filter>
+
+            <!-- Share targets. Separate filters on purpose: the VIEW filter above matches
+                 mimeType="*/*" so that .drift can be opened from anywhere, and adding media
+                 types to it would make Drift a candidate for opening every video file on the
+                 device. No BROWSABLE either — these are share-sheet destinations, not links.
+
+                 No new permissions: a shared content:// arrives with a transient read grant and
+                 the import copies the bytes out immediately. -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="video/*" />
+                <data android:mimeType="image/*" />
+                <data android:mimeType="audio/*" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND_MULTIPLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="video/*" />
+                <data android:mimeType="image/*" />
+                <data android:mimeType="audio/*" />
+            </intent-filter>
+            <!-- A pasted or shared page link. Resolved through the marketplace, so it degrades
+                 to a toast when there is no marketplace configured. -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+
+            <!-- Website-initiated marketplace account link. No in-app Sign in CTA;
+                 this only handles a redirect the user started on the site. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="cutwire" android:host="market" android:pathPrefix="/auth/callback" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="market.cutwire.org" android:pathPrefix="/app/auth/callback" />
+            </intent-filter>
+
+          <meta-data
+                android:name="android.app.lib_name"
+                android:value="-- %%INSERT_APP_LIB_NAME%% --" />
+
+          <meta-data
+                android:name="android.app.arguments"
+                android:value="-- %%INSERT_APP_ARGUMENTS%% --" />
+
+          <!-- Qt-managed splash while native + QML boot. Cleared automatically once
+               the first frame is ready (non-sticky). -->
+          <meta-data
+                android:name="android.app.splash_screen_drawable"
+                android:resource="@drawable/splash_screen" />
+        </activity>
+
+        <!-- Started only from Exporter::run and stopped when it returns. stopWithTask because the
+             encode dies with the activity anyway: a service outliving the task would leave a
+             progress notification for a render that no longer exists. -->
+        <service
+            android:name="org.cutwire.drift.ExportService"
+            android:exported="false"
+            android:stopWithTask="true"
+            android:foregroundServiceType="mediaProcessing" />
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.qtprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/qtprovider_paths"/>
+        </provider>
+    </application>
+</manifest>

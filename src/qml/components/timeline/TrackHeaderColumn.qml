@@ -1,0 +1,1120 @@
+import QtQuick
+import QtQuick.Controls.Basic
+import Drift
+import ".."
+
+// Fixed left-hand track header column: per-track mute/hide/clip-display toggles,
+// name, reorder-by-drag handle and the track context menu. Owns the
+// track-drag state; the panel only supplies the track list and vertical scroll.
+Item {
+    id: root
+
+    // Track model (EditorState.tracks) and the timeline's live vertical scroll,
+    // so headers stay aligned with their rows.
+    property var tracks: []
+    property real contentY: 0
+    // Desktop passes EditorState.trackLabelsWidth; Android a narrower fixed value.
+    property real labelsWidth: Theme.trackLabelsWidth
+    // Phone: grip + mute/hide only (no type glyph / waveform / name band).
+    property bool compact: false
+    // Touch shell: reorder has to be asked for, and the context menu needs a
+    // route that is not the right mouse button.
+    property bool touchMode: false
+    // Desktop: a handle on the right edge drags EditorState.trackLabelsWidth.
+    property bool resizable: false
+
+    // Transform layer brackets. Desktop reserves a gutter on the left for them (one indent per
+    // nesting level); the compact header draws them over the grip instead.
+    readonly property int bracketLevels: {
+        let levels = 0
+        for (let i = 0; i < tracks.length; ++i) {
+            if (tracks[i].isTransformLayer)
+                levels = Math.max(levels, (tracks[i].spanDepth || 0) + 1)
+        }
+        return levels
+    }
+    readonly property real bracketIndent: compact ? 4 : 8
+    property real bracketGutter: compact ? 0 : bracketLevels * bracketIndent
+    Behavior on bracketGutter {
+        NumberAnimation { duration: Theme.durationBase; easing.type: Theme.easing }
+    }
+    // A foot being dragged: the layer and the end it would snap to, for the header tint.
+    property int spanPreviewLayer: -1
+    property int spanPreviewEnd: -1
+    signal scrollRequested(real dy)
+
+    // Track-header reorder: source index and live drop target while dragging,
+    // plus the insertion boundary the indicator line is drawn at.
+    property int draggingTrackFrom: -1
+    property int draggingTrackTo: -1
+    property int draggingTrackSlot: -1
+
+    onDraggingTrackToChanged: Haptics.lane(draggingTrackTo)
+
+    // Pending delete confirmation — index kept until Accept/Reject so the menu
+    // can close without wiping the track immediately.
+    property int pendingDeleteTrack: -1
+    // Same idea for the rename dialog.
+    property int pendingRenameTrack: -1
+
+    clip: true
+
+    ThemedDialog {
+        id: renameTrackDialog
+        title: qsTr("Rename track")
+        acceptText: qsTr("Rename")
+        preferredWidth: Theme.dialogWidthSm
+
+        contentItem: Column {
+            width: parent ? parent.width : Theme.dialogWidthSm
+            spacing: Theme.spacingMd
+
+            ThemedTextField {
+                id: renameTrackField
+                width: parent.width
+                placeholderText: qsTr("Track name")
+            }
+        }
+
+        onOpened: {
+            renameTrackField.forceActiveFocus()
+            renameTrackField.selectAll()
+        }
+        onAccepted: {
+            if (root.pendingRenameTrack >= 0)
+                EditorState.renameTrack(root.pendingRenameTrack, renameTrackField.text)
+            root.pendingRenameTrack = -1
+        }
+        onRejected: root.pendingRenameTrack = -1
+    }
+
+    ThemedDialog {
+        id: confirmDeleteTrack
+        title: qsTr("Delete this track?")
+        acceptText: qsTr("Delete track")
+        acceptVariant: "destructive"
+        preferredWidth: Theme.dialogWidthSm
+        acceptOnReturn: false
+
+        readonly property int clipCount: {
+            if (root.pendingDeleteTrack < 0 || root.pendingDeleteTrack >= root.tracks.length)
+                return 0
+            const clips = root.tracks[root.pendingDeleteTrack].clips
+            return clips ? clips.length : 0
+        }
+
+        contentItem: ThemedLabel {
+            width: parent ? parent.width : Theme.dialogWidthSm
+            wrapMode: Text.WordWrap
+            size: "sm"
+            text: confirmDeleteTrack.clipCount > 0
+                  ? qsTr("This removes the track and its %n clips. You can undo afterwards.",
+                         "", confirmDeleteTrack.clipCount)
+                  : qsTr("This removes the empty track. You can undo afterwards.")
+        }
+
+        onAccepted: {
+            if (root.pendingDeleteTrack >= 0)
+                EditorState.removeTrack(root.pendingDeleteTrack)
+            root.pendingDeleteTrack = -1
+        }
+        onRejected: root.pendingDeleteTrack = -1
+    }
+
+    // The one definition of a row's height, shared with TimelinePanel and AndroidTimeline. It
+    // used to be duplicated in all three, which had to agree or the headers slid out of line
+    // with their rows; the nested-lane rule made keeping three copies in step untenable.
+    function trackHeight(index) {
+        // Reading `tracks` is what gives callers' bindings a dependency to re-evaluate on —
+        // EditorState.trackRowHeight is a plain call and carries none of its own.
+        const dep = tracks.length
+        return EditorState.trackRowHeight(index, {
+            "video": Theme.trackHeightVideo,
+            "audio": Theme.trackHeightAudio,
+            "text": Theme.trackHeightText,
+            "subtitle": Theme.trackHeightSubtitle,
+            "shape": Theme.trackHeightShape,
+            "adjustment": Theme.trackHeightAdjustment,
+            "lane": Theme.adjustmentLaneHeight
+        })
+    }
+
+    // Raise a row so N channel lanes each get a workable height. Only ever grows, and only
+    // on enable: silently shrinking a row the user has already tuned is worse than leaving it
+    // tall, and on disable they may well want the height they now have.
+    //
+    // Computed here rather than in C++ because the row-height metrics are owned by Theme and
+    // passed *into* trackRowHeight — C++ deliberately hardcodes none of them.
+    function growRowForChannelLanes(index, channels) {
+        if (channels < 2)
+            return
+        const base = tracks[index].type === "audio" ? Theme.trackHeightAudio
+                                                    : Theme.trackHeightVideo
+        // The waveform sits below the header band, inside the selection ring.
+        const chrome = Theme.clipHeaderBandHeight + 2 * Theme.clipSelectionRingWidth
+        const wanted = (16 * channels + chrome) / base
+        if (wanted > (tracks[index].heightScale || 1))
+            EditorState.setTrackHeightScale(index, wanted)
+    }
+
+    // A nested lane has no header of its own: it belongs to the row above it, whose header
+    // already names it.
+    function trackOccupiesARow(index) {
+        return index >= 0 && index < tracks.length && !tracks[index].isAdjustmentLane
+    }
+
+    // Video-track clip display modes, matching Track::ClipDisplay.
+    function clipDisplayGlyph(mode) {
+        if (mode === 0) return Theme.icons.film
+        if (mode === 2) return Theme.icons.audioLines
+        return Theme.icons.panelBottomDashed
+    }
+
+    function clipDisplayLabel(mode) {
+        if (mode === 0) return qsTr("Video")
+        if (mode === 2) return qsTr("Waveform")
+        return qsTr("Video + waveform")
+    }
+
+    function isHeightPreset(index, scale) {
+        return Math.abs((tracks[index].heightScale || 1) - scale) < 0.01
+    }
+
+    // Header button order: Video -> Video + waveform -> Waveform -> Video.
+    function nextClipDisplay(mode) {
+        return mode === 0 ? 1 : (mode === 1 ? 2 : 0)
+    }
+
+    // Single-letter stand-in for the type glyph plus name band, which do not fit a 72px
+    // compact header. "V1"/"A2" is the fallback identification a phone gets until the track
+    // has a custom name — see trackCompactLabel, which prefers that name when it's set.
+    function trackTypeShortLabel(type, isTransform) {
+        if (isTransform) return qsTr("TF");
+        if (type === "adjustment") return qsTr("FX");
+        if (type === "audio") return qsTr("A");
+        if (type === "text") return qsTr("T");
+        if (type === "subtitle") return qsTr("S");
+        if (type === "shape") return qsTr("G");
+        return qsTr("V");
+    }
+
+    // Human label for a track type.
+    function trackTypeLabel(type, isTransform) {
+        if (isTransform) return qsTr("Transform");
+        if (type === "adjustment") return qsTr("Adjustment");
+        if (type === "audio") return qsTr("Audio");
+        if (type === "text") return qsTr("Text");
+        if (type === "subtitle") return qsTr("Subtitle");
+        if (type === "shape") return qsTr("Graphic");
+        return qsTr("Video");
+    }
+
+    // Track numbers are scoped to their media type rather than the absolute row.
+    // A project with Video 1 followed by its first extracted audio lane should read
+    // Audio 1, not Audio 2. Reordering mixed track types keeps each sequence natural.
+    function trackTypeOrdinal(index) {
+        if (index < 0 || index >= tracks.length)
+            return 1
+        // Transform layers are adjustment tracks by type but count on their own, so an
+        // adjustment and a transform layer never share a number.
+        const type = tracks[index].type
+        const transform = tracks[index].isTransformLayer === true
+        var ordinal = 0
+        for (var i = 0; i <= index; i++) {
+            if (tracks[i].type === type && (tracks[i].isTransformLayer === true) === transform)
+                ordinal++
+        }
+        return Math.max(1, ordinal)
+    }
+
+    function trackRowTop(index) {
+        var cursor = 0
+        for (var i = 0; i < index && i < tracks.length; i++) {
+            if (!trackOccupiesARow(i))
+                continue
+            cursor += trackHeight(i) + Theme.trackGap
+        }
+        return cursor
+    }
+
+    // Boundary the dragged row would be inserted at, 0..tracks.length. Note the
+    // open upper end: the old version clamped to tracks.length - 1, so "after
+    // the last track" was not expressible and a downward drag could not reach
+    // the bottom slot.
+    function trackInsertSlotAtY(y) {
+        var cursor = 0
+        for (var i = 0; i < tracks.length; i++) {
+            if (!trackOccupiesARow(i))
+                continue
+            const th = trackHeight(i)
+            if (y < cursor + th / 2)
+                return i
+            cursor += th + Theme.trackGap
+        }
+        return tracks.length
+    }
+
+    // QList::move() destination for dragging `from` into that slot. Removing the
+    // row first shifts everything after it up by one, so a downward move lands a
+    // slot earlier than the raw boundary — without this the drag committed a
+    // move after a single pixel, because a row's own grip already sits past its
+    // own midpoint.
+    function trackMoveTargetForSlot(from, slot) {
+        const to = slot > from ? slot - 1 : slot
+        return Math.max(0, Math.min(tracks.length - 1, to))
+    }
+
+    // "Video 1 only", "Video 1 to Text 2", "Everything below" — built here so the track names
+    // match the headers.
+    function spanOptionLabel(option) {
+        if (option.kind === "all")
+            return qsTr("Everything below")
+        const last = trackNameAt(option.endIndex)
+        if (option.kind === "only")
+            return qsTr("%1 only").arg(last)
+        return qsTr("%1 to %2").arg(trackNameAt(option.firstIndex)).arg(last)
+    }
+
+    function trackNameAt(i) {
+        if (i < 0 || i >= tracks.length)
+            return ""
+        if (tracks[i].name && tracks[i].name.length > 0)
+            return tracks[i].name
+        return trackTypeLabel(tracks[i].type, tracks[i].isTransformLayer) + " " + trackTypeOrdinal(i)
+    }
+
+    function selectCoveredClips(layerIndex) {
+        const clips = tracks[layerIndex].clips || []
+        const picked = []
+        const seen = {}
+        for (let c = 0; c < clips.length; ++c) {
+            const covered = EditorState.transformLayerCoveredClips(layerIndex, c)
+            for (let k = 0; k < covered.length; ++k) {
+                const key = covered[k].track + ":" + covered[k].clip
+                if (!seen[key]) {
+                    seen[key] = true
+                    picked.push(covered[k])
+                }
+            }
+        }
+        if (picked.length > 0)
+            EditorState.setSelection(picked)
+    }
+
+    function clearTrackDrag() {
+        draggingTrackFrom = -1
+        draggingTrackTo = -1
+        draggingTrackSlot = -1
+    }
+
+    Repeater {
+        model: root.tracks.length
+        delegate: Item {
+            id: trackLabelRow
+
+            Accessible.role: Accessible.Row
+            Accessible.name: trackLabelRow.trackDisplayName
+            // Read through root.tracks (not the EditorState
+            // getters) so the toggles rebind on tracksChanged.
+            readonly property bool trackMuted: root.tracks[index].muted === true
+            readonly property bool trackHidden: root.tracks[index].hidden === true
+            readonly property int clipDisplay: root.tracks[index].clipDisplay !== undefined
+                                               ? root.tracks[index].clipDisplay : 1
+            readonly property bool trackWaveform: clipDisplay === 2
+            // Falls back to the type+position label until a custom name is set.
+            readonly property string trackDisplayName:
+                root.tracks[index].name && root.tracks[index].name.length > 0
+                ? root.tracks[index].name
+                : root.trackTypeLabel(root.tracks[index].type, root.tracks[index].isTransformLayer)
+                  + " " + root.trackTypeOrdinal(index)
+            // Same, but falling back to the short "V1"/"A2" form the compact header uses when
+            // there's no custom name to show instead.
+            readonly property string trackCompactLabel:
+                root.tracks[index].name && root.tracks[index].name.length > 0
+                ? root.tracks[index].name
+                : root.trackTypeShortLabel(root.tracks[index].type, root.tracks[index].isTransformLayer)
+                  + root.trackTypeOrdinal(index)
+            readonly property bool isTransformLayer: root.tracks[index].isTransformLayer === true
+            readonly property bool transformable: ["video", "text", "subtitle", "shape"]
+                                                  .indexOf(root.tracks[index].type) !== -1
+            readonly property bool insideBracket: (root.tracks[index].transformCoveredBy || []).length > 0
+            // Tinted while a bracket foot is dragged over it: this is what the span would cover.
+            readonly property bool spanPreviewed: root.spanPreviewLayer >= 0
+                                                  && index > root.spanPreviewLayer
+                                                  && index <= root.spanPreviewEnd
+            x: root.bracketGutter
+            width: root.labelsWidth - root.bracketGutter
+            // A lane draws inside its parent's row, so it gets no header of its own.
+            visible: root.trackOccupiesARow(index)
+            height: root.trackHeight(index)
+                    + (index < root.tracks.length - 1 ? Theme.trackGap : 0)
+            // Split deliberately: trackRowTop() walks every track ahead of this one, so binding
+            // it straight into `y` re-ran that walk for every header on every scroll frame. The
+            // walk now depends only on the track model; the per-frame part is one subtraction.
+            readonly property real rowTop: root.trackRowTop(index)
+            // Follows the timeline's vertical scroll so labels stay
+            // aligned with their rows.
+            y: rowTop - root.contentY
+            opacity: root.draggingTrackFrom === index ? 0.45 : 1.0
+
+            // Reorder drag. Covers the whole header rather than just the grip:
+            // reaching for the header body is the instinctive gesture, and the
+            // grip alone was a ~22px target that was easy to miss entirely.
+            // Declared first so it sits below the toggle buttons and the
+            // right-click menu, which keep their own presses.
+            MouseArea {
+                id: trackHeaderDrag
+                anchors.fill: parent
+                hoverEnabled: true
+                acceptedButtons: Qt.LeftButton
+                cursorShape: root.draggingTrackFrom === index ? Qt.SizeAllCursor
+                                                              : Qt.ArrowCursor
+
+                // A press is not yet a reorder: without a threshold, clicking a
+                // header committed a move, because a row's grip already sits
+                // past its own midpoint.
+                property real pressY: 0
+                property bool moved: false
+                // Touch only: the hold was recognised, so this row is now draggable.
+                // Letting go without moving asks for the context menu instead.
+                property bool armed: false
+                readonly property real threshold: 4
+
+                // On touch the reorder waits for a hold. Arming on press meant any 4px
+                // of finger travel reordered the tracks, and the header column could
+                // never be used to scroll the timeline vertically.
+                pressAndHoldInterval: 400
+                preventStealing: root.touchMode ? armed : true
+
+                onPressed: (mouse) => {
+                    pressY = mouse.y
+                    moved = false
+                    armed = false
+                    if (root.touchMode)
+                        return
+                    root.draggingTrackFrom = index
+                    root.draggingTrackTo = index
+                    root.draggingTrackSlot = -1
+                }
+                onPressAndHold: (mouse) => {
+                    if (!root.touchMode || moved)
+                        return
+                    pressY = mouse.y
+                    armed = true
+                    root.draggingTrackFrom = index
+                    root.draggingTrackTo = index
+                    root.draggingTrackSlot = -1
+                    Haptics.pickUp()
+                }
+                onPositionChanged: (mouse) => {
+                    if (root.draggingTrackFrom < 0)
+                        return
+                    if (!moved && Math.abs(mouse.y - pressY) < threshold)
+                        return
+                    moved = true
+                    const local = mapToItem(root, mouse.x, mouse.y)
+                    // Rows are drawn at trackRowTop(i) - contentY, so `local` is view
+                    // space while trackInsertSlotAtY walks content offsets. Scrolled, the
+                    // drop landed on whichever row happened to sit at that screen y.
+                    root.draggingTrackSlot = root.trackInsertSlotAtY(local.y + root.contentY)
+                    root.draggingTrackTo = root.trackMoveTargetForSlot(
+                                               root.draggingTrackFrom,
+                                               root.draggingTrackSlot)
+                }
+                onReleased: {
+                    const wantsMenu = root.touchMode && armed && !moved
+                    armed = false
+                    if (wantsMenu) {
+                        root.clearTrackDrag()
+                        trackContextMenu.popup()
+                        return
+                    }
+                    if (moved && root.draggingTrackFrom >= 0
+                            && root.draggingTrackTo >= 0
+                            && root.draggingTrackFrom !== root.draggingTrackTo) {
+                        Haptics.confirm()
+                        EditorState.moveTrack(root.draggingTrackFrom,
+                                              root.draggingTrackTo)
+                    } else {
+                        Haptics.drop()
+                    }
+                    root.clearTrackDrag()
+                }
+                onCanceled: {
+                    armed = false
+                    root.clearTrackDrag()
+                }
+            }
+
+            Rectangle {
+                anchors.right: parent.right
+                width: 1
+                height: root.trackHeight(index)
+                color: Theme.panelBorder
+            }
+
+            Rectangle {
+                width: parent.width
+                height: root.trackHeight(index)
+                color: Theme.clipTransform
+                opacity: trackLabelRow.spanPreviewed ? 0.18
+                         : (trackLabelRow.isTransformLayer ? 0.08 : 0)
+
+                Behavior on opacity {
+                    NumberAnimation { duration: Theme.durationFast; easing.type: Theme.easing }
+                }
+            }
+
+            // Drag affordance — left-aligned reorder grip. The compact header draws brackets
+            // where the grip sits, so rows inside one leave it out.
+            IconGlyph {
+                visible: !(root.compact && trackLabelRow.insideBracket)
+                anchors.left: parent.left
+                anchors.leftMargin: root.compact ? 4 : 8
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.verticalCenterOffset: index < root.tracks.length - 1 ? -Theme.trackGap / 2 : 0
+                glyph: Theme.icons.gripVertical
+                iconSize: root.compact ? 12 : 14
+                iconColor: trackDragMouse.hovered || root.draggingTrackFrom === index
+                           ? Theme.panelForeground : Theme.mutedForeground
+
+                Behavior on iconColor {
+                    ColorAnimation { duration: Theme.durationFast; easing.type: Theme.easing }
+                }
+
+                ThemedToolTip {
+                    visible: trackHeaderDrag.containsMouse && root.draggingTrackFrom < 0
+                    text: qsTr("Drag the header to reorder this track")
+                }
+
+                // Hover affordance only — the drag lives on the whole header
+                // row below, so the grab target is not a 14px icon.
+                HoverHandler { id: trackDragMouse }
+            }
+
+            // One eye per nested adjustment lane, level with its strip at the top of the row.
+            // The lane has no header of its own, so its switch lives on its parent's.
+            Column {
+                anchors.right: parent.right
+                anchors.rightMargin: root.compact ? 4 : 12
+                y: 0
+                Repeater {
+                    model: EditorState.clipsModel(index).adjustmentLanes
+                    delegate: Item {
+                        id: laneEye
+                        required property var modelData
+                        readonly property bool laneHidden: root.tracks[modelData].hidden === true
+                        width: 16
+                        height: Theme.adjustmentLaneHeight
+
+                        IconGlyph {
+                            anchors.centerIn: parent
+                            glyph: laneEye.laneHidden ? Theme.icons.eyeOff : Theme.icons.eye
+                            iconSize: 14
+                            iconColor: laneEye.laneHidden ? Theme.destructive : Theme.mutedForeground
+
+                            ThemedToolTip {
+                                visible: laneEyeMouse.containsMouse
+                                text: laneEye.laneHidden ? qsTr("Turn adjustment on") : qsTr("Turn adjustment off")
+                            }
+
+                            Accessible.role: Accessible.CheckBox
+                            Accessible.name: laneEye.laneHidden ? qsTr("Turn adjustment on") : qsTr("Turn adjustment off")
+                            Accessible.checked: laneEye.laneHidden
+                            Accessible.onToggleAction: laneEyeMouse.clicked(null)
+                        }
+
+                        MouseArea {
+                            id: laneEyeMouse
+                            anchors.fill: parent
+                            anchors.margins: -2
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                Haptics.toggle(!laneEye.laneHidden)
+                                EditorState.setTrackHidden(laneEye.modelData, !laneEye.laneHidden)
+                            }
+                        }
+                    }
+                }
+            }
+
+            Row {
+                id: trackIconRow
+                anchors.right: parent.right
+                anchors.rightMargin: root.compact ? 4 : 12
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.verticalCenterOffset: index < root.tracks.length - 1 ? -Theme.trackGap / 2 : 0
+                // Each toggle's hit area overhangs its glyph by 4 either side, so a 4px
+                // gap left the mute and hide targets touching: half the visible gap fired
+                // the wrong one, and both silently drop the track from render and export.
+                // 12 leaves a 4px dead band between them.
+                spacing: root.touchMode ? 12 : (root.compact ? 4 : 8)
+
+                // Voiceover record button on audio tracks
+                IconGlyph {
+                    id: micIcon
+                    readonly property bool isRecordingHere:
+                        EditorState.isRecordingAudio && EditorState.recordingTrackIndex === index
+
+                    visible: root.tracks[index].type === "audio" && root.tracks[index].isAdjustmentLane !== true
+                    glyph: Theme.icons.mic
+                    iconSize: 16
+                    anchors.verticalCenter: parent.verticalCenter
+                    iconColor: micIcon.isRecordingHere
+                               ? (EditorState.isAudioRecordingPaused ? "#eab308" : Theme.destructive)
+                               : (micMouse.containsMouse ? Theme.panelForeground : Theme.mutedForeground)
+
+                    Accessible.role: Accessible.Button
+                    Accessible.name: micIcon.isRecordingHere ? qsTr("Stop recording") : qsTr("Record voiceover")
+
+                    ThemedToolTip {
+                        visible: micMouse.containsMouse
+                        text: micIcon.isRecordingHere
+                              ? (EditorState.isAudioRecordingPaused ? qsTr("Paused — click to finish recording") : qsTr("Recording — click to finish recording"))
+                              : qsTr("Record voiceover (mic)")
+                    }
+
+                    MouseArea {
+                        id: micMouse
+                        anchors.fill: parent
+                        anchors.margins: -4
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            if (EditorState.isRecordingAudio) {
+                                EditorState.stopAudioRecording()
+                            } else {
+                                EditorState.startAudioRecording(index)
+                            }
+                        }
+                    }
+
+                    SequentialAnimation on opacity {
+                        running: micIcon.isRecordingHere && !EditorState.isAudioRecordingPaused
+                        loops: Animation.Infinite
+                        NumberAnimation { to: 0.3; duration: 450 }
+                        NumberAnimation { to: 1.0; duration: 450 }
+                    }
+                }
+
+                IconGlyph {
+                    visible: root.tracks[index].type === "video"
+                             || root.tracks[index].type === "audio"
+                    glyph: trackLabelRow.trackMuted ? Theme.icons.volumeOff : Theme.icons.volumeHigh
+                    iconSize: 16
+                    iconColor: trackLabelRow.trackMuted ? Theme.destructive : Theme.mutedForeground
+                    anchors.verticalCenter: parent.verticalCenter
+
+                    // The tooltip above never renders on touch, so the same string has to
+                    // reach tooling and screen readers through the accessible name instead.
+                    Accessible.role: Accessible.CheckBox
+                    Accessible.name: trackLabelRow.trackMuted ? qsTr("Unmute track") : qsTr("Mute track")
+                    Accessible.checked: trackLabelRow.trackMuted
+                    Accessible.onToggleAction: muteMouse.clicked(null)
+
+                    ThemedToolTip {
+                        visible: muteMouse.containsMouse
+                        text: trackLabelRow.trackMuted ? qsTr("Unmute track") : qsTr("Mute track")
+                    }
+
+                    MouseArea {
+                        id: muteMouse
+                        anchors.fill: parent
+                        anchors.margins: -4
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            Haptics.toggle(!trackLabelRow.trackMuted)
+                            EditorState.setTrackMuted(index, !trackLabelRow.trackMuted)
+                        }
+                    }
+                }
+
+                // Stacked per-channel waveforms. Offered only where there is something to
+                // split: mono and stereo-downmix material has one lane either way, and the
+                // channel count is known because an on-screen track has decoded a block.
+                IconGlyph {
+                    id: channelLanesToggle
+                    // trackMaxChannelCount has no notify of its own and the count only lands
+                    // once a block has decoded, so depend on `tracks` to re-evaluate then.
+                    readonly property int laneChannels: {
+                        const dep = root.tracks.length
+                        return EditorState.trackMaxChannelCount(index)
+                    }
+                    readonly property bool lanesOn:
+                        root.tracks[index].showChannelWaveforms === true
+
+                    visible: (root.tracks[index].type === "audio"
+                              || (root.tracks[index].type === "video"
+                                  && trackLabelRow.trackWaveform))
+                             && laneChannels > 1
+                    glyph: Theme.icons.split
+                    iconSize: 16
+                    iconColor: lanesOn ? Theme.primary : Theme.mutedForeground
+                    anchors.verticalCenter: parent.verticalCenter
+
+                    Behavior on iconColor {
+                        ColorAnimation { duration: Theme.durationFast; easing.type: Theme.easing }
+                    }
+
+                    ThemedToolTip {
+                        visible: channelLanesMouse.containsMouse
+                        text: channelLanesToggle.lanesOn
+                              ? qsTr("Show one combined waveform")
+                              : qsTr("Show each channel separately (%1)")
+                                    .arg(channelLanesToggle.laneChannels)
+                    }
+
+                    MouseArea {
+                        id: channelLanesMouse
+                        anchors.fill: parent
+                        anchors.margins: -4
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            const on = !channelLanesToggle.lanesOn
+                            Haptics.toggle(on)
+                            EditorState.setTrackShowChannelWaveforms(index, on)
+                            if (on)
+                                root.growRowForChannelLanes(
+                                    index, channelLanesToggle.laneChannels)
+                        }
+                    }
+                }
+
+                IconGlyph {
+                    id: hideGlyph
+                    // On a transform layer the eye bypasses it: the tracks it covers stay visible,
+                    // just unmoved.
+                    readonly property string hideLabel: trackLabelRow.isTransformLayer
+                        ? (trackLabelRow.trackHidden ? qsTr("Turn transform on") : qsTr("Turn transform off"))
+                        : root.tracks[index].type === "adjustment"
+                          ? (trackLabelRow.trackHidden ? qsTr("Turn adjustment on") : qsTr("Turn adjustment off"))
+                          : (trackLabelRow.trackHidden ? qsTr("Show track") : qsTr("Hide track"))
+                    visible: root.tracks[index].type === "video"
+                             || root.tracks[index].type === "adjustment"
+                             || root.tracks[index].type === "text"
+                             || root.tracks[index].type === "subtitle"
+                             || root.tracks[index].type === "shape"
+                             || trackLabelRow.isTransformLayer
+                    glyph: trackLabelRow.trackHidden ? Theme.icons.eyeOff : Theme.icons.eye
+                    iconSize: 16
+                    iconColor: trackLabelRow.trackHidden ? Theme.destructive : Theme.mutedForeground
+                    anchors.verticalCenter: parent.verticalCenter
+
+                    ThemedToolTip {
+                        visible: hideMouse.containsMouse
+                        text: hideGlyph.hideLabel
+                    }
+
+                    Accessible.role: Accessible.CheckBox
+                    Accessible.name: hideLabel
+                    Accessible.checked: trackLabelRow.trackHidden
+                    Accessible.onToggleAction: hideMouse.clicked(null)
+
+                    MouseArea {
+                        id: hideMouse
+                        anchors.fill: parent
+                        anchors.margins: -4
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            Haptics.toggle(!trackLabelRow.trackHidden)
+                            EditorState.setTrackHidden(index, !trackLabelRow.trackHidden)
+                        }
+                    }
+                }
+
+                // Cycles the track's clips through filmstrip / filmstrip + waveform bar /
+                // waveform.
+                IconGlyph {
+                    visible: !root.compact && root.tracks[index].type === "video"
+                    glyph: root.clipDisplayGlyph(trackLabelRow.clipDisplay)
+                    iconSize: 16
+                    iconColor: trackLabelRow.clipDisplay === 0 ? Theme.mutedForeground : Theme.primary
+                    anchors.verticalCenter: parent.verticalCenter
+
+                    ThemedToolTip {
+                        visible: waveMouse.containsMouse
+                        text: qsTr("Clips show: %1 (click to change)")
+                                  .arg(root.clipDisplayLabel(trackLabelRow.clipDisplay))
+                    }
+
+                    MouseArea {
+                        id: waveMouse
+                        anchors.fill: parent
+                        anchors.margins: -4
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            Haptics.press()
+                            EditorState.setTrackClipDisplay(
+                                index, root.nextClipDisplay(trackLabelRow.clipDisplay))
+                        }
+                    }
+                }
+            }
+
+            // Text/subtitle rows are too short for the name band above (it needs both a
+            // top-anchored name and a vertically centered icon row without the two
+            // overlapping), so the name sits inline here instead, between the grip and the
+            // type/toggle icons.
+            Text {
+                visible: !root.compact && root.trackHeight(index) < 40
+                anchors.left: parent.left
+                anchors.leftMargin: Theme.spacing3xl + Theme.spacingSm
+                anchors.right: trackIconRow.left
+                anchors.rightMargin: Theme.spacingSm
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.verticalCenterOffset: index < root.tracks.length - 1 ? -Theme.trackGap / 2 : 0
+                text: trackLabelRow.trackDisplayName
+                color: Theme.mutedForeground
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fontSizeTiny
+                elide: Text.ElideRight
+            }
+
+            // Compact stand-in for the glyph and the name band: sits in the gap
+            // between the grip and the mute/hide pair, which is the only free
+            // horizontal space the compact header has. Shows the custom name (elided) once
+            // one is set — the context menu's Rename is reachable here too (long-press),
+            // and a rename that changes nothing visible would look like it silently failed.
+            Text {
+                visible: root.compact
+                anchors.left: parent.left
+                anchors.leftMargin: 18
+                anchors.right: trackIconRow.left
+                anchors.rightMargin: Theme.spacingSm
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.verticalCenterOffset: index < root.tracks.length - 1 ? -Theme.trackGap / 2 : 0
+                text: trackLabelRow.trackCompactLabel
+                color: Theme.mutedForeground
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fontSizeTiny
+                elide: Text.ElideRight
+            }
+
+            // Clip display toggle for compact headers. Parked in the bottom-left
+            // corner rather than in the icon row, which a video track has no room left
+            // in — and only video rows (65px) are tall enough for a second corner.
+            IconGlyph {
+                visible: root.compact && root.tracks[index].type === "video"
+                anchors.left: parent.left
+                anchors.leftMargin: 4
+                anchors.bottom: parent.bottom
+                anchors.bottomMargin: (index < root.tracks.length - 1 ? Theme.trackGap : 0) + 4
+                glyph: root.clipDisplayGlyph(trackLabelRow.clipDisplay)
+                iconSize: Theme.iconSizeMd
+                iconColor: trackLabelRow.clipDisplay === 0 ? Theme.mutedForeground : Theme.primary
+
+                MouseArea {
+                    anchors.fill: parent
+                    anchors.margins: -8
+                    onClicked: {
+                        Haptics.press()
+                        EditorState.setTrackClipDisplay(
+                            index, root.nextClipDisplay(trackLabelRow.clipDisplay))
+                    }
+                }
+            }
+
+            // Track name. Nothing in the header used to say which
+            // track this was beyond the type glyph.
+            Text {
+                anchors.left: parent.left
+                anchors.leftMargin: Theme.spacing3xl + Theme.spacingSm
+                anchors.right: parent.right
+                anchors.rightMargin: Theme.spacingLg
+                anchors.top: parent.top
+                anchors.topMargin: Theme.spacingMd
+                text: trackLabelRow.trackDisplayName
+                color: Theme.mutedForeground
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fontSizeTiny
+                elide: Text.ElideRight
+                visible: !root.compact && root.trackHeight(index) >= 40
+            }
+
+            // Track context menu. Right-click on desktop; on touch it is opened from the
+            // reorder area below, which sits under the mute/hide toggles so those keep
+            // their own presses. Accepting LeftButton here would put this on top of
+            // everything and swallow the lot.
+            MouseArea {
+                id: trackMenuArea
+                anchors.fill: parent
+                acceptedButtons: Qt.RightButton
+                onClicked: trackContextMenu.popup()
+
+                ThemedContextMenu {
+                    id: trackContextMenu
+
+                    ThemedMenuItem {
+                        text: qsTr("Rename…")
+                        icon.name: Theme.icons.pencil
+                        onTriggered: {
+                            root.pendingRenameTrack = index
+                            // Custom name only — pre-filling the type+position fallback
+                            // ("Video 1") would persist it as a real name on an unchanged
+                            // confirm, then stick after the track is reordered.
+                            renameTrackField.text = root.tracks[index].name || ""
+                            renameTrackDialog.open()
+                        }
+                    }
+                    ThemedMenuSeparator {}
+                    ThemedMenuItem {
+                        text: trackLabelRow.trackMuted ? qsTr("Unmute track")
+                                                       : qsTr("Mute track")
+                        icon.name: trackLabelRow.trackMuted ? Theme.icons.volumeHigh
+                                                            : Theme.icons.volumeOff
+                        onTriggered: EditorState.setTrackMuted(index, !trackLabelRow.trackMuted)
+                    }
+                    ThemedMenuItem {
+                        text: trackLabelRow.trackHidden ? qsTr("Show track")
+                                                        : qsTr("Hide track")
+                        icon.name: trackLabelRow.trackHidden ? Theme.icons.eye
+                                                             : Theme.icons.eyeOff
+                        onTriggered: EditorState.setTrackHidden(index, !trackLabelRow.trackHidden)
+                    }
+                    ThemedMenuSeparator {
+                        visible: trackLabelRow.isTransformLayer || trackLabelRow.transformable
+                    }
+                    // A submenu cannot be hidden per row, so the span choices open as their
+                    // own menu from here.
+                    ThemedMenuItem {
+                        visible: trackLabelRow.isTransformLayer
+                        text: qsTr("Covers…")
+                        icon.name: Theme.icons.layers
+                        onTriggered: coversMenu.popup()
+                    }
+                    ThemedMenuItem {
+                        visible: trackLabelRow.isTransformLayer
+                        text: qsTr("Select covered clips")
+                        icon.name: Theme.icons.maximize
+                        onTriggered: root.selectCoveredClips(index)
+                    }
+                    ThemedMenuItem {
+                        visible: trackLabelRow.transformable
+                        text: qsTr("Add transform layer above")
+                        icon.name: Theme.icons.maximize
+                        onTriggered: EditorState.addTransformLayerAbove(index)
+                    }
+                    ThemedMenuSeparator {
+                        visible: root.tracks[index].type === "video"
+                    }
+                    // The active entry swaps its icon for a tick, like the header's
+                    // Settings menu.
+                    ThemedMenuItem {
+                        visible: root.tracks[index].type === "video"
+                        text: root.clipDisplayLabel(0)
+                        icon.name: trackLabelRow.clipDisplay === 0 ? Theme.icons.check
+                                                                   : root.clipDisplayGlyph(0)
+                        onTriggered: EditorState.setTrackClipDisplay(index, 0)
+                    }
+                    ThemedMenuItem {
+                        visible: root.tracks[index].type === "video"
+                        text: root.clipDisplayLabel(1)
+                        icon.name: trackLabelRow.clipDisplay === 1 ? Theme.icons.check
+                                                                   : root.clipDisplayGlyph(1)
+                        onTriggered: EditorState.setTrackClipDisplay(index, 1)
+                    }
+                    ThemedMenuItem {
+                        visible: root.tracks[index].type === "video"
+                        text: root.clipDisplayLabel(2)
+                        icon.name: trackLabelRow.clipDisplay === 2 ? Theme.icons.check
+                                                                   : root.clipDisplayGlyph(2)
+                        onTriggered: EditorState.setTrackClipDisplay(index, 2)
+                    }
+                    ThemedMenuSeparator {}
+                    ThemedContextMenu {
+                        title: qsTr("Track height")
+
+                        ThemedMenuItem {
+                            text: qsTr("Short")
+                            icon.name: root.isHeightPreset(index, 0.6)
+                                       ? Theme.icons.check : Theme.icons.listChevronsDownUp
+                            onTriggered: EditorState.setTrackHeightScale(index, 0.6)
+                        }
+                        ThemedMenuItem {
+                            text: qsTr("Tall")
+                            icon.name: root.isHeightPreset(index, 1.0)
+                                       ? Theme.icons.check : Theme.icons.list
+                            onTriggered: EditorState.setTrackHeightScale(index, 1.0)
+                        }
+                        ThemedMenuItem {
+                            text: qsTr("Taller")
+                            icon.name: root.isHeightPreset(index, 1.6)
+                                       ? Theme.icons.check : Theme.icons.listChevronsUpDown
+                            onTriggered: EditorState.setTrackHeightScale(index, 1.6)
+                        }
+                        ThemedMenuSeparator {
+                            visible: !root.touchMode
+                        }
+                        ThemedMenuItem {
+                            visible: !root.touchMode
+                            enabled: false
+                            text: qsTr("Scroll over the header to fine-tune")
+                            icon.name: Theme.icons.info
+                        }
+                    }
+                    // Desktop fine-tunes a lane by wheeling over its header. Touch has no
+                    // wheel, so the same nudge is offered explicitly.
+                    ThemedMenuItem {
+                        visible: root.touchMode
+                        text: qsTr("Taller row")
+                        icon.name: Theme.icons.chevronUp
+                        enabled: root.tracks[index].heightScale < EditorState.trackHeightScaleMax()
+                        onTriggered: EditorState.nudgeTrackHeightScale(index, 1)
+                    }
+                    ThemedMenuItem {
+                        visible: root.touchMode
+                        text: qsTr("Shorter row")
+                        icon.name: Theme.icons.chevronDown
+                        enabled: root.tracks[index].heightScale > EditorState.trackHeightScaleMin()
+                        onTriggered: EditorState.nudgeTrackHeightScale(index, -1)
+                    }
+                    ThemedMenuSeparator {}
+                    ThemedMenuItem {
+                        text: qsTr("Delete track")
+                        icon.name: Theme.icons.trash
+                        onTriggered: {
+                            root.pendingDeleteTrack = index
+                            confirmDeleteTrack.open()
+                        }
+                    }
+                }
+
+                ThemedContextMenu {
+                    id: coversMenu
+                    title: qsTr("Covers")
+                    enabled: trackLabelRow.isTransformLayer
+                    readonly property int layerIndex: index
+                    property var options: []
+                    onAboutToShow: options = EditorState.transformSpanOptions(layerIndex)
+
+                    Instantiator {
+                        model: coversMenu.options
+                        delegate: ThemedMenuItem {
+                            required property var modelData
+                            text: root.spanOptionLabel(modelData)
+                            icon.name: modelData.current ? Theme.icons.check : ""
+                            onTriggered: EditorState.setTransformSpan(coversMenu.layerIndex,
+                                                                      modelData.endId)
+                        }
+                        onObjectAdded: (i, object) => coversMenu.insertItem(i, object)
+                        onObjectRemoved: (i, object) => coversMenu.removeItem(object)
+                    }
+                }
+            }
+
+            // DAW-style lane zoom: wheel over this header grows/shrinks only
+            // this track, so a music track can be made tall for waveform work
+            // without zooming the whole timeline. NoButton keeps clicks, the
+            // reorder drag and the context menu working underneath.
+            MouseArea {
+                anchors.fill: parent
+                acceptedButtons: Qt.NoButton
+                z: 40
+                onWheel: (wheel) => {
+                    // Modified wheel belongs to the timeline's zoom/pan.
+                    if (wheel.modifiers & (Qt.ControlModifier | Qt.ShiftModifier)) {
+                        wheel.accepted = false
+                        return
+                    }
+                    const dy = wheel.angleDelta.y !== 0 ? wheel.angleDelta.y
+                                                        : wheel.pixelDelta.y
+                    if (dy === 0)
+                        return
+                    EditorState.nudgeTrackHeightScale(index, dy > 0 ? 1 : -1)
+                }
+            }
+        }
+    }
+
+    // One bracket per transform layer, over the rows and in the gutter they leave.
+    Repeater {
+        model: root.tracks.length
+        delegate: TransformSpanBracket {
+            required property int index
+            width: root.width
+            height: root.height
+            z: 20
+            tracks: root.tracks
+            layerIndex: root.tracks[index].isTransformLayer ? index : -1
+            contentY: root.contentY
+            indentStep: root.bracketIndent
+            touchMode: root.touchMode
+            rowTop: root.trackRowTop
+            rowHeight: root.trackHeight
+            onPreviewEndChanged: {
+                if (previewEnd >= 0) {
+                    root.spanPreviewLayer = index
+                    root.spanPreviewEnd = previewEnd
+                } else if (root.spanPreviewLayer === index) {
+                    root.spanPreviewLayer = -1
+                    root.spanPreviewEnd = -1
+                }
+            }
+            onScrollRequested: (dy) => root.scrollRequested(dy)
+        }
+    }
+
+    // Insertion line while reordering tracks.
+    Rectangle {
+        visible: root.draggingTrackSlot >= 0 && root.draggingTrackTo >= 0
+                 && root.draggingTrackFrom !== root.draggingTrackTo
+        width: parent.width - 8
+        height: 2
+        radius: 1
+        x: 4
+        color: Theme.primary
+        z: 10
+        // Drawn at the insertion boundary itself, in the same frame as the
+        // header rows — without -contentY it drifts off the boundary as soon as
+        // the tracks are scrolled.
+        y: {
+            const slot = root.draggingTrackSlot
+            if (slot < 0)
+                return 0
+            if (slot >= root.tracks.length) {
+                var last = root.tracks.length - 1
+                while (last > 0 && !root.trackOccupiesARow(last))
+                    last--
+                return root.trackRowTop(last) + root.trackHeight(last)
+                       - root.contentY - 1
+            }
+            return root.trackRowTop(slot) - root.contentY - 1
+        }
+    }
+
+    // Drag to widen the header column; double-click restores the default.
+    MouseArea {
+        id: widthHandle
+        visible: root.resizable
+        anchors.right: parent.right
+        anchors.top: parent.top
+        anchors.bottom: parent.bottom
+        width: 6
+        z: 50
+        hoverEnabled: true
+        cursorShape: Qt.SplitHCursor
+        preventStealing: true
+        onPositionChanged: (mouse) => {
+            if (pressed)
+                EditorState.trackLabelsWidth = x + mouse.x + width / 2
+        }
+        onDoubleClicked: EditorState.trackLabelsWidth = Theme.trackLabelsWidth
+
+        Rectangle {
+            anchors.right: parent.right
+            width: 2
+            height: parent.height
+            color: Theme.primary
+            opacity: widthHandle.pressed || widthHandle.containsMouse ? 1 : 0
+
+            Behavior on opacity {
+                NumberAnimation { duration: Theme.durationFast; easing.type: Theme.easing }
+            }
+        }
+    }
+}

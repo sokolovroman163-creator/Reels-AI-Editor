@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Drift
+GenericName=Video Editor
+Comment=Edit and export videos easily
+Exec=drift %u
+Icon=org.cutwire.Drift
+Terminal=false
+Categories=AudioVideo;Video;AudioVideoEditing;
+Keywords=video;editor;movie;clip;ffmpeg;subtitles;
+MimeType=application/x-drift-project;x-scheme-handler/cutwire;
+StartupWMClass=drift
