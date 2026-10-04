@@ -288,6 +288,30 @@ ThemedDialog {
         }
     }
 
+    function applyReelsPreset() {
+        var h264 = codecById(videoCodecs, "h264")
+        var aac = codecById(audioCodecs, "aac")
+        if (!h264 || !h264.available || !aac || !aac.available)
+            return
+        // This explicit user action changes the canvas through the normal undo system.
+        EditorState.setProjectSetup(1080, 1920, 30)
+        scaleOptions = EditorState.exportScaleOptions()
+        exportMode = "video"
+        scaleId = "source"
+        targetHeight = 0
+        videoCodecId = "h264"
+        audioCodecId = "aac"
+        fpsNum = 30
+        fpsDen = 1
+        frameRateId = frameRateIdFor(30, 1)
+        audioBitrateKbps = 192
+        exportWorkAreaOnly = false
+        applyVideoCodecDefaults(h264)
+        refreshCodecMeta()
+        syncAudioBitrateChoice()
+        syncComboIndices()
+    }
+
     function buildSettings() {
         var s = {
             "scaleId": scaleId,
@@ -370,6 +394,21 @@ ThemedDialog {
             id: exportColumn
             spacing: Theme.spacingXl
             width: contentFlick.width
+
+            ThemedButton {
+                width: parent.width
+                height: Theme.androidMinTouchTarget
+                text: qsTr("Instagram Reels — 1080×1920 · H.264/AAC · 30 fps")
+                enabled: !!(root.codecById(root.videoCodecs,"h264") || {}).available
+                         && !!(root.codecById(root.audioCodecs,"aac") || {}).available
+                onClicked: root.applyReelsPreset()
+            }
+            ThemedLabel {
+                width: parent.width
+                wrapMode: Text.WordWrap
+                size: "sm"
+                text: qsTr("The Reels preset changes the project canvas to 9:16. Check framing in the preview before exporting.")
+            }
 
             Row {
                 spacing: Theme.spacingMd

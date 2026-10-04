@@ -1429,7 +1429,8 @@ QJsonArray homepageTools()
                        "end of the material render black and carry beyond_end:true. Cannot run inside "
                        "apply. Follow up with capture({at}) for a full-size look."),
         objectSchema(mergeProps(
-            {{QStringLiteral("start"), numberProp(QStringLiteral("Range start seconds (default: work area or 0)"))},
+            {{QStringLiteral("asset"), stringProp(QStringLiteral("Imported video asset id from list_assets; source seconds, no timeline mutation. Mutually exclusive with clip/track/index."))},
+             {QStringLiteral("start"), numberProp(QStringLiteral("Range start seconds (default: work area or 0)"))},
              {QStringLiteral("end"), numberProp(QStringLiteral("Range end seconds (default: work area or timeline end)"))},
              {QStringLiteral("at"), arrayProp(numberProp(QStringLiteral("Seconds")), QStringLiteral("Exact times to render, max 20; overrides sample"))},
              {QStringLiteral("n"), propWithDefault(integerProp(QStringLiteral("Tiles to keep"), 1, 20), 12)},

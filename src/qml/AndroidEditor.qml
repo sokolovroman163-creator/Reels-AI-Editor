@@ -106,6 +106,11 @@ Item {
     // Android Back, delegated from AndroidMain. Returns true when it consumed the press,
     // so a sheet or dialog closes instead of the editor being popped out from under it.
     function handleBack() {
+        if (aiSheet.opened) {
+            if (ReelsAI.busy) ReelsAI.stop()
+            aiSheet.dismiss()
+            return true
+        }
         if (exportProgressDialog.visible) {
             exportProgressDialog.close()
             return true
@@ -241,6 +246,7 @@ Item {
     Column {
         anchors.fill: parent
         spacing: 0
+        enabled: !ReelsAI.busy
 
         AndroidTopBar {
             id: topBar
@@ -255,12 +261,28 @@ Item {
             onProjectMenuRequested: projectSheet.open()
         }
 
+        Item {
+            id: aiEntry
+            width:parent.width
+            height:Theme.androidMinTouchTarget + Theme.spacingSm * 2
+            visible:!root.previewFullscreen
+            ThemedButton {
+                anchors.fill:parent
+                anchors.margins:Theme.spacingSm
+                text:qsTr("AI Montage")
+                glyph:Theme.icons.sparkles
+                variant:"secondary"
+                onClicked: { root.closeSheets(); aiPane.refreshVideos(); aiSheet.open() }
+            }
+        }
+
         SplitView {
             id: editorSplit
             width: parent.width
             // Column skips hidden children but their `height` still reads non-zero,
             // so the two strips only count while they are on screen.
             height: Math.max(0, parent.height - (topBar.visible ? topBar.height : 0)
+                                - (aiEntry.visible ? aiEntry.height : 0)
                                 - (rail.visible ? rail.height : 0))
             // Landscape and multi-window leave roughly 260px of height, which a vertical
             // split cannot divide into a usable preview and a usable timeline. Side by
@@ -536,6 +558,21 @@ Item {
 
     ExportDialog {
         id: exportDialog
+    }
+
+    AndroidBottomSheet {
+        id:aiSheet
+        title:qsTr("AI Montage")
+        sheetHeightFraction:0.94
+        sheetExpandedFraction:0.98
+        onClosed: if (ReelsAI.busy) ReelsAI.stop()
+        AiMontagePane {
+            id:aiPane
+            anchors.fill:parent
+            onDoneRequested:aiSheet.dismiss()
+            onSettingsRequested: { aiSheet.dismiss(); root.Window.window.openAISettings() }
+            onAddonsRequested: { aiSheet.dismiss(); root.Window.window.openAddonManager("whisper-model") }
+        }
     }
 
     ExportProgressDialog {

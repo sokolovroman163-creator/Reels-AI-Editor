@@ -843,6 +843,17 @@ qt_add_executable(drift
     src/models/UpdateChecker.cpp
     src/models/AppController.h
     src/models/AppController.cpp
+    src/ai/AiSecretStore.h
+    src/ai/AiSecretStore.cpp
+    src/ai/AiProvider.h
+    src/ai/PolzaProvider.h
+    src/ai/PolzaProvider.cpp
+    src/ai/AiCommandPolicy.h
+    src/ai/AiCommandPolicy.cpp
+    src/ai/McpAiBridge.h
+    src/ai/McpAiBridge.cpp
+    src/ai/AgentOrchestrator.h
+    src/ai/AgentOrchestrator.cpp
     src/models/EditorState.h
     src/models/LayoutStore.h
     src/models/LayoutStore.cpp
@@ -1175,6 +1186,8 @@ qt_add_qml_module(drift
         src/qml/components/VideoSizeControls.qml
         src/qml/components/ProjectPropertiesDialog.qml
         src/qml/components/SettingsPane.qml
+        src/qml/components/AiSettingsPane.qml
+        src/qml/components/AiMontagePane.qml
         src/qml/components/SheetActionRow.qml
         src/qml/components/SheetActionTile.qml
         src/qml/components/SettingsDialog.qml

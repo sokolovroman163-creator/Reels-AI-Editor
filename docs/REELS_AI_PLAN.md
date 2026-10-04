@@ -6,12 +6,13 @@
 
 ## Текущее состояние
 
-Исходники скачаны и изучены. AI-функции пока не реализованы. Готового APK нашей
-версии с AI нет. Контрольная сборка неизменённого upstream завершилась успешно:
+Исходники скачаны и изучены. AI-функции добавлены поверх существующего dispatcher;
+компиляция и функциональная проверка новой версии выполняются в CI.
+Контрольная сборка неизменённого upstream завершилась успешно:
 https://github.com/sokolovroman163-creator/Reels-AI-Editor/actions/runs/37212332391,
 job `111465868433`, artifact `11308010476`. Полный APK подписан debug-сертификатом;
 apksigner и zipalign прошли, aapt подтвердил `org.cutwire.drift`, `arm64-v8a`.
-Теперь можно добавлять AI-функции. Fork:
+AI добавлен после этой контрольной сборки. Fork:
 https://github.com/sokolovroman163-creator/Reels-AI-Editor.
 
 - Android-компиляция точного commit прошла в upstream:
@@ -101,8 +102,8 @@ https://github.com/sokolovroman163-creator/Reels-AI-Editor.
 
 Baseline artifact: `Drift-upstream-arm64-v8a`, файл `Drift-upstream-arm64-v8a.apk`.
 Наша identity artifact: `ReelsAI-arm64-v8a`, файл `ReelsAI-arm64-v8a.apk`.
-Пока AI не реализован, второй APK проверяет только новую identity исходного
-редактора; он не считается AI beta.
+Новые исходники включают AI-монтаж. Зелёный APK подтверждает сборку и подпись;
+функциональные проверки с настоящим Polza и на устройстве учитываются отдельно.
 
 Тестовая подпись создаётся в runner temp. Для постоянной подписи предусмотрены
 Secrets `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`.

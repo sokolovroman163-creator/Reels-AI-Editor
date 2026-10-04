@@ -16,6 +16,9 @@ Item {
     // Natural height of the whole list, so the dialog can size itself to the content
     // and cap it at what fits on screen instead of guessing.
     readonly property real contentHeight: flick.contentHeight
+    function focusAI() {
+        flick.contentY = Math.max(0, Math.min(aiSection.y, flick.contentHeight - flick.height))
+    }
 
     Flickable {
         id: flick
@@ -640,6 +643,12 @@ Item {
                     height: Theme.androidMinTouchTarget
                     onClicked: Qt.openUrlExternally("https://github.com/sokolovroman163-creator/Reels-AI-Editor")
                 }
+            }
+
+            SettingsSection {
+                id: aiSection
+                title: qsTr("AI")
+                AiSettingsPane { width:parent.width }
             }
 
             SettingsSection {

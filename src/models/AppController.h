@@ -773,6 +773,7 @@ public:
         bool toPath = false;
         int track = -1;
         int clip = -1;
+        QString asset; // Optional imported video, without placing it on the timeline.
     };
     QJsonObject mcpFrameSheet(const McpFrameSheetRequest &request);
 
@@ -2110,6 +2111,7 @@ public:
     // sheet. Deferred to this point rather than done as part of the export because it is a second
     // full copy of the video, and most exports are never shared. Android only; false/no-op elsewhere.
     Q_INVOKABLE void shareLastExport();
+    Q_INVOKABLE void saveLastExport();
     // Same publish-to-gallery step as shareLastExport, handed to a player instead of a share
     // sheet. Shares the m_sharingExport guard, so the two cannot run the copy twice at once.
     Q_INVOKABLE void playLastExport();

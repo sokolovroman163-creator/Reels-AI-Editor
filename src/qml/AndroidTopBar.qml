@@ -168,9 +168,9 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 variant: "primary"
                 glyph: Theme.icons.upload
-                text: qsTr("Export")
+                text: qsTr("Export Reel")
                 tooltip: EditorState.exportInProgress ? qsTr("Show export progress")
-                                                      : qsTr("Export")
+                                                      : qsTr("Export Reel")
                 onClicked: EditorState.exportInProgress ? root.exportProgressRequested()
                                                         : root.exportRequested()
 

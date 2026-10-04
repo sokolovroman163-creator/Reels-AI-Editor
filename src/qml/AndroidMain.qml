@@ -654,6 +654,9 @@ ApplicationWindow {
     function openSettings() {
         settingsDialogLoader.ensure().open()
     }
+    function openAISettings() {
+        settingsDialogLoader.ensure().openAI()
+    }
 
     function openAddonManager(kind) {
         if (kind === undefined)

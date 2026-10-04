@@ -27029,6 +27029,30 @@ void AppController::playLastExport()
 #endif
 }
 
+void AppController::saveLastExport()
+{
+#ifdef Q_OS_ANDROID
+    if (m_lastExportUrl.isEmpty() || m_sharingExport)
+        return;
+    m_sharingExport = true;
+    emit canShareExportChanged();
+    setLastMessage(tr("Saving video to phone…"));
+    const QUrl source = m_lastExportUrl;
+    const QString name = m_lastExportName;
+    (void)QtConcurrent::run([this, source, name]() {
+        Exporter::BackgroundHold hold(QStringLiteral("Saving to gallery"));
+        QString error;
+        const QUrl published = Exporter::publishToGallery(source, name, &error);
+        QMetaObject::invokeMethod(this, [this, published, error]() {
+            m_sharingExport = false;
+            emit canShareExportChanged();
+            setLastMessage(published.isEmpty() ? error : tr("Video saved to phone"),
+                           published.isEmpty() ? QStringLiteral("error") : QStringLiteral("success"));
+        }, Qt::QueuedConnection);
+    });
+#endif
+}
+
 void AppController::shareLastExport()
 {
 #ifdef Q_OS_ANDROID
@@ -29171,9 +29195,23 @@ QJsonObject AppController::mcpFrameSheet(const McpFrameSheetRequest &request)
 
     FrameSource src;
     src.project = std::make_shared<const drift::Project>(m_project.detachedCopy());
-    const bool sourceMode = request.track >= 0 || request.clip >= 0;
+    const bool assetMode = !request.asset.isEmpty();
+    const bool sourceMode = assetMode || request.track >= 0 || request.clip >= 0;
     drift::Clip clip;
-    if (sourceMode) {
+    if (assetMode) {
+        const drift::MediaAsset *asset = src.project->asset(request.asset);
+        if (!asset || asset->kind != drift::MediaKind::Video || asset->durationUs <= 0)
+            return err("not_found", QStringLiteral("Imported video is missing or its probe has not finished"));
+        clip.id = asset->id;
+        clip.path = asset->path;
+        clip.type = drift::ClipType::Video;
+        clip.srcIn = asset->trimInUs;
+        clip.srcOut = asset->trimOutUs >= 0 ? qMin(asset->trimOutUs, asset->durationUs) : asset->durationUs;
+        const int assetIndex = m_assetLibrary ? m_assetLibrary->indexOfId(asset->id) : -1;
+        clip.rotationCorrection = m_assetLibrary ? m_assetLibrary->assetAt(assetIndex).value(QStringLiteral("rotationCorrection")).toInt() : 0;
+        src.path = clip.path;
+        src.rotationCorrection = clip.rotationCorrection;
+    } else if (sourceMode) {
         const auto &tracks = src.project->tracks();
         if (request.track < 0 || request.track >= tracks.size() || request.clip < 0
             || request.clip >= tracks.at(request.track).clips.size())
@@ -29363,7 +29401,7 @@ QJsonObject AppController::mcpFrameSheet(const McpFrameSheetRequest &request)
             row.insert(QStringLiteral("beyond_end"), true);
             ++outside;
         }
-        if (sourceMode)
+        if (sourceMode && !assetMode)
             row.insert(QStringLiteral("tl"), round3(clipLocalToTimelineSeconds(clip, drift::secondsToUs(t))));
         if (!sceneOf.isEmpty()) {
             row.insert(QStringLiteral("clip"), sceneOf.at(idx).first);
@@ -29388,7 +29426,7 @@ QJsonObject AppController::mcpFrameSheet(const McpFrameSheetRequest &request)
     if (outside > 0)
         meta.insert(QStringLiteral("beyond_end"), outside);
     if (sourceMode)
-        meta.insert(QStringLiteral("clip"), clip.id);
+        meta.insert(assetMode ? QStringLiteral("asset") : QStringLiteral("clip"), clip.id);
     if (changes) {
         meta.insert(QStringLiteral("candidates"), candidates.size());
         meta.insert(QStringLiteral("skipped"), result->skipped);

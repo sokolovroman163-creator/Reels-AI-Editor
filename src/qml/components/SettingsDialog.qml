@@ -11,6 +11,10 @@ ThemedDialog {
     preferredWidth: Theme.dialogWidthLg
     acceptText: qsTr("Done")
     showReject: false
+    function openAI() {
+        open()
+        Qt.callLater(pane.focusAI)
+    }
 
     contentItem: SettingsPane {
         id: pane

@@ -191,6 +191,21 @@ jobs:
       - name: Build
         run: cmake --build build --parallel
 
+      - name: Capture canonical translation catalogs for review
+        shell: bash
+        run: |
+          cmake --build build --target update_translations
+          mkdir -p build/translation-review
+          cp i18n/*.ts build/translation-review/
+          git diff -- i18n/ > build/translation-review/catalogs.patch
+          git restore -- i18n/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: translation-review-${{ runner.os }}
+          path: build/translation-review/
+          retention-days: 7
+
       # Deliberately not QT_QPA_PLATFORM=offscreen: that plugin cannot create an OpenGL context
       # on a runner with no /dev/dri, so every compositor test would render a null QImage and
       # only some of them QSKIP on GpuEffectExecutor::isAvailable() — the rest would compare
@@ -313,6 +328,21 @@ jobs:
 
       - name: Build
         run: cmake --build build --parallel
+
+      - name: Capture canonical translation catalogs for review
+        shell: bash
+        run: |
+          cmake --build build --target update_translations
+          mkdir -p build/translation-review
+          cp i18n/*.ts build/translation-review/
+          git diff -- i18n/ > build/translation-review/catalogs.patch
+          git restore -- i18n/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: translation-review-${{ runner.os }}
+          path: build/translation-review/
+          retention-days: 7
 
       # No xvfb and no QT_QPA_PLATFORM override: the runner has a real window server, so the
       # compositor tests get a genuine OpenGL context. Serial for the same reason as the Linux

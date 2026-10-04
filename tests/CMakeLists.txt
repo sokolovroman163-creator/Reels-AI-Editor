@@ -170,6 +170,12 @@ endif()
 
 qt_add_executable(tst_mcp
     tst_mcp.cpp
+    ../src/ai/AiProvider.h
+    ../src/ai/AiSecretStore.cpp
+    ../src/ai/PolzaProvider.cpp
+    ../src/ai/AiCommandPolicy.cpp
+    ../src/ai/McpAiBridge.cpp
+    ../src/ai/AgentOrchestrator.cpp
     ../src/mcp/McpSession.cpp
     ../src/mcp/McpCatalog.cpp
     ../src/mcp/McpProtocol.cpp
@@ -211,6 +217,12 @@ target_compile_definitions(tst_mcp PRIVATE DRIFT_VERSION="${PROJECT_VERSION}"
 add_test(NAME Mcp COMMAND tst_mcp)
 drift_copy_effects(tst_mcp)
 drift_copy_transitions(tst_mcp)
+
+qt_add_executable(tst_aiprovider tst_aiprovider.cpp
+    ../src/ai/AiProvider.h ../src/ai/AiSecretStore.cpp ../src/ai/PolzaProvider.cpp)
+target_include_directories(tst_aiprovider PRIVATE ../src)
+target_link_libraries(tst_aiprovider PRIVATE Qt6::Test Qt6::Network)
+add_test(NAME AiProvider COMMAND tst_aiprovider)
 
 # Runs lupdate and fails if i18n/*.ts would change — i.e. someone added qsTr/tr and
 # did not run `cmake --build build --target update_translations`. Skipped where lupdate cannot

@@ -3,6 +3,7 @@
      projects are worth carrying to a new device, rebuildable caches are not. -->
 <data-extraction-rules>
     <cloud-backup>
+        <exclude domain="sharedpref" path="reelsai_polza_secret.xml" />
         <exclude domain="file" path="reversed" />
         <exclude domain="file" path="mattes" />
         <exclude domain="file" path="facetracks" />
@@ -22,6 +23,7 @@
         <exclude domain="external" path="." />
     </cloud-backup>
     <device-transfer>
+        <exclude domain="sharedpref" path="reelsai_polza_secret.xml" />
         <exclude domain="file" path="reversed" />
         <exclude domain="file" path="mattes" />
         <exclude domain="file" path="facetracks" />

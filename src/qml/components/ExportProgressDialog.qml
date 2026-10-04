@@ -56,6 +56,14 @@ ThemedDialog {
         // Bound to canShareExport rather than to "the export ended": the publish runs on a
         // worker, so it is false again for as long as either button's copy is in flight, and
         // that is exactly when neither should be pressable.
+        ThemedButton {
+            width: parent.width
+            height: Theme.androidMinTouchTarget
+            visible: Qt.platform.os === "android" && !EditorState.exportInProgress && EditorState.canShareExport
+            text: qsTr("Save to phone")
+            onClicked: EditorState.saveLastExport()
+        }
+
         Row {
             width: parent.width
             spacing: Theme.androidTouchGap

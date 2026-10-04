@@ -1,4 +1,7 @@
 #include <QtTest>
+#include "AiHttpFixture.h"
+#include "ai/AiCommandPolicy.h"
+#include "ai/AgentOrchestrator.h"
 #include "core/Transcript.h"
 #include "models/CloudProviders.h"
 
@@ -52,6 +55,12 @@ class McpTest : public QObject
     Q_OBJECT
 
 private slots:
+    void aiPolicyRejectsUnsafePlans();
+    void aiMontageAndUndo_data();
+    void aiMontageAndUndo();
+    void aiCancelAndProjectGuard();
+    void aiInvalidBatchDoesNotEdit();
+    void framesImportedAssetIsReadOnly();
     void catalogListsToolboxes();
     void sceneToolboxExposesSchemas();
     void sceneOpsRequireAnalysisFirst();
@@ -6073,6 +6082,137 @@ void McpTest::getWaveformImageReportsWords()
     QCOMPARE(words.size(), 6);
     QCOMPARE(words.at(3).toObject().value(QStringLiteral("i")).toInt(), 3);
     QVERIFY(r.value(QStringLiteral("image")).toObject().value(QStringLiteral("lanes")).toArray().contains(QStringLiteral("words")));
+}
+
+namespace {
+QJsonObject aiFixtureModels(bool tools = true) {
+    return {{QStringLiteral("data"),QJsonArray{QJsonObject{
+        {QStringLiteral("id"),QStringLiteral("fixture/model")},
+        {QStringLiteral("supported_parameters"),QJsonArray{tools ? QStringLiteral("tools") : QStringLiteral("temperature")}},
+        {QStringLiteral("architecture"),QJsonObject{{QStringLiteral("input_modalities"),QJsonArray{QStringLiteral("text")}}}}
+    }}}};
+}
+QJsonObject aiFixtureMessage(const QString &content, const QJsonArray &calls = {}) {
+    QJsonObject message{{QStringLiteral("role"),QStringLiteral("assistant")},{QStringLiteral("content"),content}};
+    if (!calls.isEmpty()) message.insert(QStringLiteral("tool_calls"),calls);
+    return {{QStringLiteral("choices"),QJsonArray{QJsonObject{{QStringLiteral("message"),message}}}}};
+}
+QJsonObject aiFixtureCall(const QString &name, const QJsonObject &args, const QString &id) {
+    return {{QStringLiteral("type"),QStringLiteral("function")},{QStringLiteral("id"),id},
+        {QStringLiteral("function"),QJsonObject{{QStringLiteral("name"),name},
+            {QStringLiteral("arguments"),QString::fromUtf8(QJsonDocument(args).toJson(QJsonDocument::Compact))}}}};
+}
+QString aiFixtureImport(drift::mcp::McpDispatcher &dispatcher, const QString &source) {
+    const auto imported = dispatcher.applyOne(QStringLiteral("import_media"),{{QStringLiteral("paths"),QJsonArray{source}}});
+    const auto assets = imported.value(QStringLiteral("assets")).toArray();
+    return assets.isEmpty() ? QString() : assets[0].toObject().value(QStringLiteral("id")).toString();
+}
+}
+void McpTest::aiPolicyRejectsUnsafePlans() {
+    QJsonArray plan{QJsonObject{{QStringLiteral("tool"),QStringLiteral("set_project_setup")},
+        {QStringLiteral("args"),QJsonObject{{QStringLiteral("width"),1080},{QStringLiteral("height"),1920},{QStringLiteral("fps"),30}}}},
+        QJsonObject{{QStringLiteral("tool"),QStringLiteral("export")},{QStringLiteral("args"),QJsonObject{}}}};
+    QVERIFY(!AiCommandPolicy::validatePlan(plan).value(QStringLiteral("ok")).toBool());
+    QJsonObject args{{QStringLiteral("engine"),QStringLiteral("cloud")},{QStringLiteral("asset"),QStringLiteral("asset-id")}};
+    QVERIFY(!AiCommandPolicy::validate(QStringLiteral("transcribe"),args).value(QStringLiteral("ok")).toBool());
+    args = {{QStringLiteral("ops"),QJsonArray{QJsonObject{{QStringLiteral("tool"),QStringLiteral("apply")}}}}};
+    QVERIFY(!AiCommandPolicy::validate(QStringLiteral("apply"),args).value(QStringLiteral("ok")).toBool());
+    args = {{QStringLiteral("n"),2},{QStringLiteral("return"),QStringLiteral("path")}};
+    QVERIFY(!AiCommandPolicy::validate(QStringLiteral("frames"),args).value(QStringLiteral("ok")).toBool());
+    const auto safe = AiCommandPolicy::redact(QJsonObject{{QStringLiteral("path"),QStringLiteral("/storage/private.mp4")},
+        {QStringLiteral("api_key"),QStringLiteral("synthetic_secret")},{QStringLiteral("keyframes"),QJsonArray{1,2}}}).toObject();
+    QVERIFY(!safe.contains(QStringLiteral("path"))); QVERIFY(!safe.contains(QStringLiteral("api_key")));
+    QCOMPARE(safe.value(QStringLiteral("keyframes")).toArray().size(),2);
+}
+void McpTest::aiMontageAndUndo_data() {
+    QTest::addColumn<bool>("native"); QTest::addColumn<bool>("planFirst");
+    QTest::newRow("native editing") << true << false;
+    QTest::newRow("native approved plan") << true << true;
+    QTest::newRow("JSON editing") << false << false;
+    QTest::newRow("JSON approved plan") << false << true;
+}
+void McpTest::aiMontageAndUndo() {
+    QFETCH(bool,native); QFETCH(bool,planFirst);
+    if (ffmpegPath().isEmpty()) QSKIP("ffmpeg unavailable");
+    QTemporaryDir dir; const auto source = dir.filePath(QStringLiteral("shots.mp4")); QVERIFY(writeFourShotClip(source));
+    AssetLibrary library; AppController state(&library); drift::mcp::McpDispatcher dispatcher(&state);
+    const auto asset = aiFixtureImport(dispatcher,source); QVERIFY(!asset.isEmpty());
+    const auto before = state.mcpTakeSnapshot(QString()); QVERIFY(before.value(QStringLiteral("ok")).toBool());
+    AiHttpFixture fixture; int chats = 0;
+    const QJsonArray commands{QJsonObject{{QStringLiteral("tool"),QStringLiteral("set_project_setup")},
+        {QStringLiteral("args"),QJsonObject{{QStringLiteral("width"),1080},{QStringLiteral("height"),1920},{QStringLiteral("fps"),30}}}},
+        QJsonObject{{QStringLiteral("tool"),QStringLiteral("assemble")},{QStringLiteral("args"),QJsonObject{{QStringLiteral("edl"),QJsonArray{
+            QJsonObject{{QStringLiteral("asset"),asset},{QStringLiteral("start"),1},{QStringLiteral("end"),3}},
+            QJsonObject{{QStringLiteral("asset"),asset},{QStringLiteral("start"),5},{QStringLiteral("end"),7}}}}}}}};
+    fixture.handler = [&](const auto &r) {
+        if (r.path.endsWith("/models")) { AiHttpFixture::jsonReply(r,aiFixtureModels(native)); return; }
+        ++chats;
+        const int editsAt = planFirst ? (native ? 2 : 3) : 1;
+        if (planFirst && chats < editsAt) { AiHttpFixture::jsonReply(r,aiFixtureMessage(native || chats == 2 ? QStringLiteral("0–2 сек: готовый результат, 2–4 сек: процесс.") : QStringLiteral("[]"))); return; }
+        if (chats == editsAt) {
+            QJsonArray calls;
+            if (native) for (int i = 0; i < commands.size(); ++i) calls.append(aiFixtureCall(commands[i].toObject().value(QStringLiteral("tool")).toString(),commands[i].toObject().value(QStringLiteral("args")).toObject(),QStringLiteral("call%1").arg(i)));
+            AiHttpFixture::jsonReply(r,aiFixtureMessage(native ? QString() : QString::fromUtf8(QJsonDocument(commands).toJson(QJsonDocument::Compact)),calls));
+        } else AiHttpFixture::jsonReply(r,aiFixtureMessage(native ? QStringLiteral("Готово: два фрагмента на timeline.") : QStringLiteral("[]")));
+    };
+    AgentOrchestrator agent(&state,nullptr,fixture.base()); agent.setModelChoice(QStringLiteral("custom")); agent.setCustomModel(QStringLiteral("fixture/model"));
+    QVERIFY(agent.saveKey(QStringLiteral("pza_TEST_FIXTURE_ONLY")));
+    agent.start(QStringLiteral("Сделай монтаж"),QStringLiteral("beauty"),20,QStringLiteral("9:16"),QStringLiteral("off"),planFirst,false,false,{asset});
+    if (planFirst) { QTRY_VERIFY(agent.reviewingPlan()); QCOMPARE(state.mcpTakeSnapshot(QString()).value(QStringLiteral("hash")),before.value(QStringLiteral("hash"))); agent.assemblePlan(); }
+    QTRY_VERIFY_WITH_TIMEOUT(!agent.busy(),10000);
+    QVERIFY2(agent.canUndo(),qPrintable(agent.result()));
+    QCOMPARE(state.project()->width(),1080); QCOMPARE(state.project()->height(),1920);
+    int clips = 0; for (const auto &track : state.project()->tracks()) clips += track.clips.size(); QCOMPARE(clips,2);
+    agent.undoMontage(); QTRY_VERIFY(!agent.busy());
+    QCOMPARE(state.mcpTakeSnapshot(QString()).value(QStringLiteral("hash")),before.value(QStringLiteral("hash")));
+    QVERIFY(!agent.canUndo());
+}
+void McpTest::aiCancelAndProjectGuard() {
+    if (ffmpegPath().isEmpty()) QSKIP("ffmpeg unavailable");
+    QTemporaryDir dir; const auto source = dir.filePath(QStringLiteral("shots.mp4")); QVERIFY(writeFourShotClip(source));
+    AssetLibrary library; AppController state(&library); drift::mcp::McpDispatcher dispatcher(&state);
+    const auto asset = aiFixtureImport(dispatcher,source); QVERIFY(!asset.isEmpty());
+    AiHttpFixture fixture; fixture.handler = [](const auto &r) { if (r.path.endsWith("/models")) AiHttpFixture::jsonReply(r,aiFixtureModels()); };
+    AgentOrchestrator agent(&state,nullptr,fixture.base()); agent.setModelChoice(QStringLiteral("custom")); agent.setCustomModel(QStringLiteral("fixture/model")); QVERIFY(agent.saveKey(QStringLiteral("pza_TEST_FIXTURE_ONLY")));
+    const auto delayed = aiFixtureMessage(QString(),{aiFixtureCall(QStringLiteral("set_project_setup"),{{QStringLiteral("width"),1080},{QStringLiteral("height"),1920},{QStringLiteral("fps"),30}},QStringLiteral("late"))});
+    for (int mode = 0; mode < 2; ++mode) {
+        const int expected = fixture.requests.size()+2;
+        agent.start(QStringLiteral("Монтаж"),QStringLiteral("beauty"),20,QStringLiteral("9:16"),QStringLiteral("off"),false,false,false,{asset});
+        QTRY_COMPARE(fixture.requests.size(),expected);
+        if (mode == 0) agent.stop(); else state.setProjectSetup(640,480,25);
+        const auto hash = state.mcpTakeSnapshot(QString()).value(QStringLiteral("hash"));
+        AiHttpFixture::jsonReply(fixture.requests.last(),delayed);
+        QTRY_VERIFY(!agent.busy()); QTest::qWait(100);
+        QCOMPARE(state.mcpTakeSnapshot(QString()).value(QStringLiteral("hash")),hash);
+    }
+}
+void McpTest::aiInvalidBatchDoesNotEdit() {
+    if (ffmpegPath().isEmpty()) QSKIP("ffmpeg unavailable");
+    QTemporaryDir dir; const auto source = dir.filePath(QStringLiteral("shots.mp4")); QVERIFY(writeFourShotClip(source));
+    AssetLibrary library; AppController state(&library); drift::mcp::McpDispatcher dispatcher(&state);
+    const auto asset = aiFixtureImport(dispatcher,source); QVERIFY(!asset.isEmpty());
+    const auto hash = state.mcpTakeSnapshot(QString()).value(QStringLiteral("hash"));
+    AiHttpFixture fixture; fixture.handler = [](const auto &r) {
+        AiHttpFixture::jsonReply(r,r.path.endsWith("/models") ? aiFixtureModels(false) : aiFixtureMessage(QStringLiteral("[{\"tool\":\"set_project_setup\",\"args\":{\"width\":1080,\"height\":1920,\"fps\":30}},{\"tool\":\"export\",\"args\":{}}]")));
+    };
+    AgentOrchestrator agent(&state,nullptr,fixture.base()); agent.setModelChoice(QStringLiteral("custom")); agent.setCustomModel(QStringLiteral("fixture/model")); QVERIFY(agent.saveKey(QStringLiteral("pza_TEST_FIXTURE_ONLY")));
+    agent.start(QStringLiteral("Монтаж"),QStringLiteral("beauty"),20,QStringLiteral("9:16"),QStringLiteral("off"),false,false,false,{asset});
+    QTRY_VERIFY_WITH_TIMEOUT(!agent.busy(),10000); QVERIFY(agent.step() >= 3);
+    QCOMPARE(state.mcpTakeSnapshot(QString()).value(QStringLiteral("hash")),hash); QVERIFY(!agent.canUndo());
+}
+void McpTest::framesImportedAssetIsReadOnly() {
+    if (ffmpegPath().isEmpty()) QSKIP("ffmpeg unavailable");
+    QTemporaryDir dir; const auto source = dir.filePath(QStringLiteral("shots.mp4")); QVERIFY(writeFourShotClip(source));
+    AssetLibrary library; AppController state(&library); drift::mcp::McpDispatcher dispatcher(&state);
+    const auto asset = aiFixtureImport(dispatcher,source); QVERIFY(!asset.isEmpty());
+    const auto hash = state.mcpTakeSnapshot(QString()).value(QStringLiteral("hash"));
+    const auto raw = dispatcher.frames({{QStringLiteral("asset"),asset},{QStringLiteral("sample"),QStringLiteral("uniform")},{QStringLiteral("n"),4}});
+    QVERIFY2(!raw.value(QStringLiteral("isError")).toBool(),qPrintable(QJsonDocument(raw).toJson(QJsonDocument::Compact).left(400)));
+    const auto meta = firstText(raw); QCOMPARE(meta.value(QStringLiteral("asset")).toString(),asset);
+    QCOMPARE(meta.value(QStringLiteral("frames")).toArray().size(),4);
+    QCOMPARE(state.mcpTakeSnapshot(QString()).value(QStringLiteral("hash")),hash);
+    QVERIFY(!imageBlock(raw).value(QStringLiteral("data")).toString().isEmpty());
+    QVERIFY(dispatcher.frames({{QStringLiteral("asset"),asset},{QStringLiteral("track"),0},{QStringLiteral("index"),0}}).value(QStringLiteral("ok")).toBool() == false);
 }
 
 QTEST_MAIN(McpTest)

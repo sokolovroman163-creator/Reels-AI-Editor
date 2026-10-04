@@ -20,6 +20,7 @@
 #include "models/DriftAssetStore.h"
 #include "models/SfxLibrary.h"
 #include "models/UpdateChecker.h"
+#include "ai/AgentOrchestrator.h"
 #include "engine/VaapiZeroCopy.h"
 #include "ClipPreviewImageProvider.h"
 #include "DriftImageProvider.h"
@@ -669,6 +670,7 @@ int main(int argc, char *argv[])
     static AddonManager addonManager;
     static MarketClient marketClient;
     static UpdateChecker updateChecker;
+    static AgentOrchestrator reelsAI(&editorState);
     static LayoutStore layoutStore;
     static drift::Haptics haptics;
     editorState.setAddonManager(&addonManager);
@@ -686,6 +688,7 @@ int main(int argc, char *argv[])
     qmlRegisterSingletonInstance("Drift", 1, 0, "DriftAssets", &driftAssets);
     qmlRegisterSingletonInstance("Drift", 1, 0, "Sfx", &sfxLibrary);
     qmlRegisterSingletonInstance("Drift", 1, 0, "Updates", &updateChecker);
+    qmlRegisterSingletonInstance("Drift", 1, 0, "ReelsAI", &reelsAI);
     qmlRegisterSingletonInstance("Drift", 1, 0, "LayoutMemory", &layoutStore);
     qmlRegisterSingletonInstance("Drift", 1, 0, "Haptics", &haptics);
 

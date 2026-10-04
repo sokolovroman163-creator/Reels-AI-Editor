@@ -868,6 +868,14 @@ QJsonObject McpDispatcher::frames(const QJsonObject &args)
     req.minChange = jsonInt(args.value(QStringLiteral("min_change")), 12);
     req.label = jsonBool(args.value(QStringLiteral("label")), true);
     req.toPath = args.value(QStringLiteral("return")).toString() == QLatin1String("path");
+    if (args.contains(QStringLiteral("asset"))) {
+        if (args.contains(QStringLiteral("clip")) || args.contains(QStringLiteral("track")) || args.contains(QStringLiteral("index")))
+            return textResult(err("bad_args", QStringLiteral("asset and clip references are mutually exclusive")), true);
+        const int index = resolveAsset(args.value(QStringLiteral("asset")));
+        if (index < 0 || !m_controller->assetLibrary())
+            return textResult(err("not_found", QStringLiteral("Imported asset not found")), true);
+        req.asset = m_controller->assetLibrary()->assetIdAt(index);
+    }
     if (args.contains(QStringLiteral("clip")) || args.contains(QStringLiteral("track"))
         || args.contains(QStringLiteral("index"))) {
         const ClipRef ref = resolveClip(args);
