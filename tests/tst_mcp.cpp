@@ -61,6 +61,8 @@ private slots:
     void aiCancelAndProjectGuard();
     void aiInvalidBatchDoesNotEdit();
     void aiStepLimitStopsReadLoop();
+    void aiPreviewSelection_data();
+    void aiPreviewSelection();
     void framesImportedAssetIsReadOnly();
     void catalogListsToolboxes();
     void sceneToolboxExposesSchemas();
@@ -6086,11 +6088,11 @@ void McpTest::getWaveformImageReportsWords()
 }
 
 namespace {
-QJsonObject aiFixtureModels(bool tools = true) {
+QJsonObject aiFixtureModels(bool tools = true, bool images = false) {
     return {{QStringLiteral("data"),QJsonArray{QJsonObject{
         {QStringLiteral("id"),QStringLiteral("fixture/model")},
         {QStringLiteral("supported_parameters"),QJsonArray{tools ? QStringLiteral("tools") : QStringLiteral("temperature")}},
-        {QStringLiteral("architecture"),QJsonObject{{QStringLiteral("input_modalities"),QJsonArray{QStringLiteral("text")}}}}
+        {QStringLiteral("architecture"),QJsonObject{{QStringLiteral("input_modalities"), images ? QJsonArray{QStringLiteral("text"),QStringLiteral("image")} : QJsonArray{QStringLiteral("text")}}}}
     }}}};
 }
 QJsonObject aiFixtureMessage(const QString &content, const QJsonArray &calls = {}) {
@@ -6231,6 +6233,45 @@ void McpTest::aiStepLimitStopsReadLoop() {
     agent.start(QStringLiteral("Монтаж"),QStringLiteral("beauty"),20,QStringLiteral("9:16"),QStringLiteral("off"),false,false,false,{asset});
     QTRY_VERIFY_WITH_TIMEOUT(!agent.busy(),10000); QCOMPARE(chats,5); QCOMPARE(agent.step(),5); QVERIFY(!agent.canUndo());
     agent.setMaxAgentSteps(18);
+}
+
+void McpTest::aiPreviewSelection_data() {
+    QTest::addColumn<QString>("reference");
+    QTest::newRow("clip ID") << QStringLiteral("clip");
+    QTest::newRow("track and index") << QStringLiteral("index");
+    QTest::newRow("timeline capture") << QStringLiteral("capture");
+}
+void McpTest::aiPreviewSelection() {
+    QFETCH(QString,reference);
+    if (ffmpegPath().isEmpty()) QSKIP("ffmpeg unavailable");
+    QTemporaryDir dir; const auto source = dir.filePath(QStringLiteral("selected.mp4")); QVERIFY(writeFourShotClip(source));
+    const auto other = dir.filePath(QStringLiteral("unselected.mp4")); QVERIFY(QFile::copy(source,other));
+    AssetLibrary library; AppController state(&library); drift::mcp::McpDispatcher dispatcher(&state);
+    const auto asset = aiFixtureImport(dispatcher,source); QVERIFY(!asset.isEmpty());
+    const auto clip = importAndPlace(dispatcher,other,0.0); QVERIFY(!clip.isEmpty());
+    const auto location = state.mcpLocateClip(clip); QVERIFY(location.first >= 0);
+    const auto hash = state.mcpTakeSnapshot(QString()).value(QStringLiteral("hash"));
+    const auto args = reference == QLatin1String("clip") ? QJsonObject{{QStringLiteral("clip"),clip}}
+        : reference == QLatin1String("index") ? QJsonObject{{QStringLiteral("track"),location.first},{QStringLiteral("index"),location.second}} : QJsonObject{};
+    const QJsonArray command{QJsonObject{{QStringLiteral("tool"),reference == QLatin1String("capture") ? QStringLiteral("capture") : QStringLiteral("frames")},{QStringLiteral("args"),args}}};
+    AiHttpFixture fixture; int chats = 0;
+    fixture.handler = [&](const auto &r) {
+        if (r.path.endsWith("/models")) { AiHttpFixture::jsonReply(r,aiFixtureModels(false,true)); return; }
+        ++chats;
+        // Only the initial selected contact sheet may appear, never a second preview.
+        int images = 0;
+        for (const auto &message : r.json.value(QStringLiteral("messages")).toArray())
+            for (const auto &block : message.toObject().value(QStringLiteral("content")).toArray())
+                if (block.toObject().value(QStringLiteral("type")).toString() == QLatin1String("image_url")) ++images;
+        QCOMPARE(images,1);
+        if (chats > 1) QVERIFY(QJsonDocument(r.json).toJson().contains("forbidden_asset"));
+        AiHttpFixture::jsonReply(r,aiFixtureMessage(QString::fromUtf8(QJsonDocument(command).toJson(QJsonDocument::Compact))));
+    };
+    AgentOrchestrator agent(&state,nullptr,fixture.base()); agent.setModelChoice(QStringLiteral("custom")); agent.setCustomModel(QStringLiteral("fixture/model"));
+    QVERIFY(agent.saveKey(QStringLiteral("pza_TEST_FIXTURE_ONLY")));
+    agent.start(QStringLiteral("Монтаж"),QStringLiteral("beauty"),20,QStringLiteral("9:16"),QStringLiteral("off"),false,false,true,{asset});
+    QTRY_VERIFY_WITH_TIMEOUT(!agent.busy(),10000); QCOMPARE(chats,3);
+    QCOMPARE(state.mcpTakeSnapshot(QString()).value(QStringLiteral("hash")),hash); QVERIFY(!agent.canUndo());
 }
 
 QTEST_MAIN(McpTest)

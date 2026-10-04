@@ -382,6 +382,27 @@ QJsonObject AgentOrchestrator::restrictCommand(QJsonObject &command) const {
         return true;
     };
     if (!checkAssets(checkAssets,args)) return drift::mcp::err("forbidden_asset",QStringLiteral("Use only the selected asset IDs."));
+    const bool sourcePreview = tool == QLatin1String("frames") || (tool == QLatin1String("get_waveform") && args.value(QStringLiteral("image")).toBool());
+    if ((sourcePreview && !args.contains(QStringLiteral("asset"))) || tool == QLatin1String("capture")) {
+        const auto permitted = [this](const drift::Clip &clip) {
+            // A nested timeline can contain media outside the selected assets.
+            if (clip.type == drift::ClipType::Composite) return false;
+            if (!clip.assetId.isEmpty()) return m_assets.contains(clip.assetId);
+            return clip.type != drift::ClipType::Video && clip.type != drift::ClipType::Image;
+        };
+        const auto &tracks = m_controller->project()->tracks();
+        if (sourcePreview && (args.contains(QStringLiteral("clip")) || args.contains(QStringLiteral("track")) || args.contains(QStringLiteral("index")))) {
+            const auto location = args.contains(QStringLiteral("clip"))
+                ? m_controller->mcpLocateClip(args.value(QStringLiteral("clip")).toString())
+                : qMakePair(args.value(QStringLiteral("track")).toInt(-1), args.value(QStringLiteral("index")).toInt(-1));
+            if (location.first >= 0 && location.first < tracks.size() && location.second >= 0
+                && location.second < tracks[location.first].clips.size() && !permitted(tracks[location.first].clips[location.second]))
+                return drift::mcp::err("forbidden_asset",QStringLiteral("Preview sharing is limited to selected video assets."));
+        } else {
+            for (const auto &track : tracks) for (const auto &clip : track.clips)
+                if (!permitted(clip)) return drift::mcp::err("forbidden_asset",QStringLiteral("Timeline preview contains unselected media. Use frames with a selected asset ID."));
+        }
+    }
     if (tool == QLatin1String("apply")) {
         auto ops = args.value(QStringLiteral("ops")).toArray();
         for (int i = 0; i < ops.size(); ++i) { auto op = ops[i].toObject(); const auto result = restrictCommand(op); if (!result.value(QStringLiteral("ok")).toBool()) return result; ops[i] = op; }
