@@ -121,7 +121,9 @@ jobs:
         with:
           path: ~/.cache/ccache
           key: reels-ccache-${{ env.QT_VERSION }}-${{ env.NDK_VERSION }}-${{ inputs.artifact_name }}-${{ inputs.source_ref }}-${{ github.run_id }}
-          restore-keys: reels-ccache-${{ env.QT_VERSION }}-${{ env.NDK_VERSION }}-${{ inputs.artifact_name }}-
+          restore-keys: |
+            reels-ccache-${{ env.QT_VERSION }}-${{ env.NDK_VERSION }}-${{ inputs.artifact_name }}-
+            reels-ccache-${{ env.QT_VERSION }}-${{ env.NDK_VERSION }}-Drift-upstream-arm64-v8a-
 
       - name: Build complete arm64 APK
         env:

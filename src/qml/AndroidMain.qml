@@ -9,7 +9,7 @@ ApplicationWindow {
     id: window
     visible: true
     color: Theme.appBackground
-    title: "CutWire Drift"
+    title: "Reels AI Editor"
 
     // Theme is a singleton and cannot see a window, so the size class it reports has to be fed
     // from whichever root is live. Screen is the wrong source: it ignores tiling and split view.

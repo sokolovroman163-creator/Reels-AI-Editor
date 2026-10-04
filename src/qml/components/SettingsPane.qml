@@ -621,6 +621,28 @@ Item {
             }
 
             SettingsSection {
+                title: qsTr("About Reels AI Editor")
+
+                ThemedLabel {
+                    width: parent.width
+                    wrapMode: Text.WordWrap
+                    text: qsTr("Independent project based on Drift by CutWire Studios. Licensed under GNU GPLv3. Original copyright notices and the source code are preserved.")
+                }
+
+                ThemedButton {
+                    text: qsTr("Drift source code")
+                    height: Theme.androidMinTouchTarget
+                    onClicked: Qt.openUrlExternally("https://github.com/CutWire-Studios/Drift")
+                }
+
+                ThemedButton {
+                    text: qsTr("Reels AI Editor source and GPLv3")
+                    height: Theme.androidMinTouchTarget
+                    onClicked: Qt.openUrlExternally("https://github.com/sokolovroman163-creator/Reels-AI-Editor")
+                }
+            }
+
+            SettingsSection {
                 title: qsTr("Marketplace")
                 visible: Market.configured && Market.authenticated
 

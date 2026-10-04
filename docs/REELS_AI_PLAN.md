@@ -7,7 +7,12 @@
 ## Текущее состояние
 
 Исходники скачаны и изучены. AI-функции пока не реализованы. Готового APK нашей
-версии нет. Изменения движка запрещены до успешной контрольной сборки upstream.
+версии с AI нет. Контрольная сборка неизменённого upstream завершилась успешно:
+https://github.com/sokolovroman163-creator/Reels-AI-Editor/actions/runs/37212332391,
+job `111465868433`, artifact `11308010476`. Полный APK подписан debug-сертификатом;
+apksigner и zipalign прошли, aapt подтвердил `org.cutwire.drift`, `arm64-v8a`.
+Теперь можно добавлять AI-функции. Fork:
+https://github.com/sokolovroman163-creator/Reels-AI-Editor.
 
 - Android-компиляция точного commit прошла в upstream:
   https://github.com/CutWire-Studios/Drift/actions/runs/37208666372.

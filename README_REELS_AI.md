@@ -5,8 +5,11 @@ Android-версия для автоматического и ручного м�
 Это независимая производная сборка; она не является официальным Drift.
 Исходная лицензия GPLv3 и notices находятся в [LICENSE](LICENSE).
 
-**Статус: подготовка контрольной Android-сборки. AI-монтаж ещё не реализован,
-готового APK artifact пока нет.**
+**Статус: контрольный upstream APK собран и подписан. AI-монтаж ещё не реализован.**
+Контрольная сборка: [Reels AI Android #1](https://github.com/sokolovroman163-creator/Reels-AI-Editor/actions/runs/37212332391),
+artifact `Drift-upstream-arm64-v8a`. Подтверждены полный APK, package
+`org.cutwire.drift` и ABI `arm64-v8a`; это исходный редактор, не AI beta.
+Дополнены 226 незавершённых русских переводов, добавлены отдельная identity и attribution.
 
 Исходники upstream находятся в этом репозитории. План и результаты анализа:
 [docs/REELS_AI_PLAN.md](docs/REELS_AI_PLAN.md).

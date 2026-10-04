@@ -67,11 +67,11 @@ esac
 # Both CI workflows set these explicitly, and a local `build.sh <abi> Release` still builds the
 # release identity.
 if [ "$BUILD_TYPE" = "Release" ]; then
-    : "${DRIFT_ANDROID_PACKAGE_NAME:=org.cutwire.drift}"
-    : "${DRIFT_ANDROID_APP_NAME:=Drift}"
+    : "${DRIFT_ANDROID_PACKAGE_NAME:=app.reelsai.editor}"
+    : "${DRIFT_ANDROID_APP_NAME:=Reels AI Editor}"
 else
-    : "${DRIFT_ANDROID_PACKAGE_NAME:=org.cutwire.drift.debug}"
-    : "${DRIFT_ANDROID_APP_NAME:=Drift Debug}"
+    : "${DRIFT_ANDROID_PACKAGE_NAME:=app.reelsai.editor.debug}"
+    : "${DRIFT_ANDROID_APP_NAME:=Reels AI Editor Debug}"
 fi
 # The package id and launcher label are set independently above, so the channel here only
 # decides the version string the app reports (0.7.0-nightly.<stamp>).
