@@ -457,6 +457,395 @@
     </message>
 </context>
 <context>
+    <name>AgentOrchestrator</name>
+    <message>
+        <source>Done</source>
+        <translation>Готово</translation>
+    </message>
+    <message>
+        <source>Connected</source>
+        <translation>Подключено</translation>
+    </message>
+    <message>
+        <source>AI requested too many operations.</source>
+        <translation>AI запросил слишком много операций.</translation>
+    </message>
+    <message>
+        <source>AI could not perform this operation. The project is kept in its current state.</source>
+        <translation>AI не смог выполнить операцию. Текущее состояние проекта сохранено.</translation>
+    </message>
+    <message>
+        <source>AI made no timeline changes.</source>
+        <translation>AI не изменил timeline.</translation>
+    </message>
+    <message>
+        <source>Requests disabled. Could not completely remove the key; try again.</source>
+        <translation>Запросы отключены. Не удалось полностью удалить ключ; повторите попытку.</translation>
+    </message>
+    <message>
+        <source>Stopping…</source>
+        <translation>Останавливаю…</translation>
+    </message>
+    <message>
+        <source>AI returned an empty plan.</source>
+        <translation>AI вернул пустой план.</translation>
+    </message>
+    <message>
+        <source>Describe what to do with these videos.</source>
+        <translation>Опишите, что сделать с этими видео.</translation>
+    </message>
+    <message>
+        <source>AI stopped</source>
+        <translation>AI остановлен</translation>
+    </message>
+    <message>
+        <source>Analyzing videos…</source>
+        <translation>Анализирую видео…</translation>
+    </message>
+    <message>
+        <source>The project changed. AI stopped without applying a delayed response.</source>
+        <translation>Проект изменился. AI остановлен; запоздалый ответ не применён.</translation>
+    </message>
+    <message>
+        <source>Review the plan</source>
+        <translation>Проверьте план</translation>
+    </message>
+    <message>
+        <source>Tools</source>
+        <translation>Инструменты</translation>
+    </message>
+    <message>
+        <source>AI montage undone</source>
+        <translation>AI-монтаж отменён</translation>
+    </message>
+    <message>
+        <source>Adding captions…</source>
+        <translation>Добавляю субтитры…</translation>
+    </message>
+    <message>
+        <source>Could not save the key securely.</source>
+        <translation>Не удалось безопасно сохранить ключ.</translation>
+    </message>
+    <message>
+        <source>JSON plan</source>
+        <translation>JSON-план</translation>
+    </message>
+    <message>
+        <source>AI step limit reached. The project is kept in its current state.</source>
+        <translation>Достигнут лимит шагов AI. Текущее состояние проекта сохранено.</translation>
+    </message>
+    <message>
+        <source>Before AI montage</source>
+        <translation>До AI-монтажа</translation>
+    </message>
+    <message>
+        <source>Select 1–20 imported videos and wait for import to finish.</source>
+        <translation>Выберите 1–20 импортированных видео и дождитесь завершения импорта.</translation>
+    </message>
+    <message>
+        <source>Stopped</source>
+        <translation>Остановлено</translation>
+    </message>
+    <message>
+        <source>Building the structure…</source>
+        <translation>Собираю структуру…</translation>
+    </message>
+    <message>
+        <source>AI context limit reached. Try fewer clips or shorter requests.</source>
+        <translation>Достигнут предел контекста AI. Выберите меньше клипов или сократите запрос.</translation>
+    </message>
+    <message>
+        <source>Finding the best moments…</source>
+        <translation>Выбираю лучшие моменты…</translation>
+    </message>
+    <message>
+        <source>Switched to GPT-6 Sol after repeated invalid plans.</source>
+        <translation>После повторных ошибок плана выбрана GPT-6 Sol.</translation>
+    </message>
+    <message>
+        <source>Trimming clips…</source>
+        <translation>Подрезаю клипы…</translation>
+    </message>
+    <message>
+        <source>This model has no confirmed image support. Select a vision model or turn off preview sharing.</source>
+        <translation>Поддержка изображений у этой модели не подтверждена. Выберите модель с поддержкой изображений или отключите отправку кадров.</translation>
+    </message>
+    <message>
+        <source>Could not save a recovery snapshot. AI was not started.</source>
+        <translation>Не удалось сохранить снимок для восстановления. AI не запущен.</translation>
+    </message>
+    <message>
+        <source>AI montage</source>
+        <translation>AI-монтаж</translation>
+    </message>
+    <message>
+        <source>Checking connection…</source>
+        <translation>Проверка подключения…</translation>
+    </message>
+    <message>
+        <source>API key deleted</source>
+        <translation>API-ключ удалён</translation>
+    </message>
+    <message>
+        <source>Enter a model ID in provider/model-name format.</source>
+        <translation>Введите ID модели в формате provider/model-name.</translation>
+    </message>
+    <message>
+        <source>Checking the edit…</source>
+        <translation>Проверяю монтаж…</translation>
+    </message>
+    <message>
+        <source>Caption analysis timed out. The project is kept in its current state.</source>
+        <translation>Время анализа речи истекло. Текущее состояние проекта сохранено.</translation>
+    </message>
+    <message>
+        <source>Wait for captions or export to finish before starting AI.</source>
+        <translation>Дождитесь завершения субтитров или экспорта, прежде чем запускать AI.</translation>
+    </message>
+    <message>
+        <source>Key saved</source>
+        <translation>Ключ сохранён</translation>
+    </message>
+    <message>
+        <source>Done. Check the timeline and preview; every edit remains editable.</source>
+        <translation>Готово. Проверьте timeline и предпросмотр; все правки можно изменить вручную.</translation>
+    </message>
+    <message>
+        <source>Could not restore the recovery snapshot.</source>
+        <translation>Не удалось восстановить сохранённый снимок.</translation>
+    </message>
+    <message>
+        <source>Styling text…</source>
+        <translation>Оформляю текст…</translation>
+    </message>
+</context>
+<context>
+    <name>AiMontagePane</name>
+    <message>
+        <source>Duration</source>
+        <translation>Длительность</translation>
+    </message>
+    <message>
+        <source>Show the plan first</source>
+        <translation>Сначала показать план</translation>
+    </message>
+    <message>
+        <source>Beauty / Lashmaker</source>
+        <translation>Beauty / Лэшмейкер</translation>
+    </message>
+    <message>
+        <source>Allow selected frames/previews to be sent to Polza</source>
+        <translation>Разрешить отправку выбранных кадров в Polza</translation>
+    </message>
+    <message>
+        <source>What should I do with these videos?</source>
+        <translation>Что сделать с этими видео?</translation>
+    </message>
+    <message>
+        <source>Captions</source>
+        <translation>Субтитры</translation>
+    </message>
+    <message>
+        <source>Russian</source>
+        <translation>Русский</translation>
+    </message>
+    <message>
+        <source>Dynamic</source>
+        <translation>Динамичный</translation>
+    </message>
+    <message>
+        <source>Choose 2–20 videos</source>
+        <translation>Выберите 2–20 видео</translation>
+    </message>
+    <message>
+        <source>Make Reel</source>
+        <translation>Сделать Reel</translation>
+    </message>
+    <message>
+        <source>Work process</source>
+        <translation>Рабочий процесс</translation>
+    </message>
+    <message>
+        <source>Before / after</source>
+        <translation>До / после</translation>
+    </message>
+    <message>
+        <source>Expert</source>
+        <translation>Экспертный</translation>
+    </message>
+    <message>
+        <source>Make a premium 20-second beauty Reel. Start with the result, show the process, add Russian captions and a booking CTA.</source>
+        <translation>Сделай дорогой beauty-Reel на 20 секунд. Начни с результата, покажи процесс, добавь русские субтитры и приглашение записаться.</translation>
+    </message>
+    <message>
+        <source>Off</source>
+        <translation>Выкл.</translation>
+    </message>
+    <message>
+        <source>Editing stays on this device. Your prompt, project context and allowed previews are sent to Polza. Original videos are not uploaded.</source>
+        <translation>Монтаж выполняется на устройстве. Запрос, контекст проекта и разрешённые кадры отправляются в Polza. Исходные видео не загружаются.</translation>
+    </message>
+    <message>
+        <source>Maximum quality</source>
+        <translation>Максимальное качество</translation>
+    </message>
+    <message>
+        <source>Auto</source>
+        <translation>Авто</translation>
+    </message>
+    <message>
+        <source>Step %1 / %2 · %3</source>
+        <translation>Шаг %1 / %2 · %3</translation>
+    </message>
+    <message>
+        <source>Importing…</source>
+        <translation>Импорт…</translation>
+    </message>
+    <message>
+        <source>Minimal</source>
+        <translation>Минимализм</translation>
+    </message>
+    <message>
+        <source>Back to timeline</source>
+        <translation>Вернуться к timeline</translation>
+    </message>
+    <message>
+        <source>Undo AI montage</source>
+        <translation>Отменить AI-монтаж</translation>
+    </message>
+    <message>
+        <source>Talking</source>
+        <translation>Разговорный</translation>
+    </message>
+    <message>
+        <source>Aspect ratio</source>
+        <translation>Формат кадра</translation>
+    </message>
+    <message>
+        <source>Open Addon Manager</source>
+        <translation>Открыть дополнения</translation>
+    </message>
+    <message>
+        <source>Change plan</source>
+        <translation>Изменить план</translation>
+    </message>
+    <message>
+        <source>%1 seconds</source>
+        <translation>%1 секунд</translation>
+    </message>
+    <message>
+        <source>Choose no more than 20 videos at a time.</source>
+        <translation>Выберите не более 20 видео за один раз.</translation>
+    </message>
+    <message>
+        <source>To music</source>
+        <translation>Под музыку</translation>
+    </message>
+    <message>
+        <source>Install the local Whisper addon to generate captions. The agent will report if a required addon is missing.</source>
+        <translation>Для субтитров установите локальное дополнение Whisper. Агент сообщит, если нужное дополнение отсутствует.</translation>
+    </message>
+    <message>
+        <source>Import videos from phone</source>
+        <translation>Выбрать видео из галереи</translation>
+    </message>
+    <message>
+        <source>Undo AI returns the project to its state before this run, including any edits made afterwards.</source>
+        <translation>Отмена AI вернёт проект к состоянию до этого запуска, включая отмену последующих ручных правок.</translation>
+    </message>
+    <message>
+        <source>Stop</source>
+        <translation>Остановить</translation>
+    </message>
+    <message>
+        <source>Videos selected: %1 / 20</source>
+        <translation>Выбрано видео: %1 / 20</translation>
+    </message>
+    <message>
+        <source>Assemble</source>
+        <translation>Собрать</translation>
+    </message>
+    <message>
+        <source>AI settings — Polza.AI</source>
+        <translation>Настройки AI — Polza.AI</translation>
+    </message>
+</context>
+<context>
+    <name>AiSettingsPane</name>
+    <message>
+        <source>Save</source>
+        <translation>Сохранить</translation>
+    </message>
+    <message>
+        <source>Custom model</source>
+        <translation>Своя модель</translation>
+    </message>
+    <message>
+        <source>GPT-6 Luna — fast and economical</source>
+        <translation>GPT-6 Luna — быстро и экономно</translation>
+    </message>
+    <message>
+        <source>Key saved — enter a new key to replace it</source>
+        <translation>Ключ сохранён — введите новый для замены</translation>
+    </message>
+    <message>
+        <source>On desktop the key is kept only for this session. Android uses Keystore.</source>
+        <translation>На компьютере ключ хранится только в текущем сеансе. На Android используется Keystore.</translation>
+    </message>
+    <message>
+        <source>Video editing runs on your device. When using AI, your prompt and selected frames/previews may be sent to the selected AI provider. Original videos are not uploaded automatically.</source>
+        <translation>Монтаж выполняется на устройстве. При использовании AI ваш запрос и выбранные кадры могут отправляться AI-провайдеру. Исходные видео автоматически не загружаются.</translation>
+    </message>
+    <message>
+        <source>Show</source>
+        <translation>Показать</translation>
+    </message>
+    <message>
+        <source>Auto</source>
+        <translation>Авто</translation>
+    </message>
+    <message>
+        <source>Model availability, tools and image support are checked at runtime. Auto uses Luna; maximum quality uses Sol.</source>
+        <translation>Доступность модели, инструментов и изображений проверяется при запуске. В режиме «Авто» используется Luna, для максимального качества — Sol.</translation>
+    </message>
+    <message>
+        <source>GPT-6 Sol — complex editing</source>
+        <translation>GPT-6 Sol — сложный монтаж</translation>
+    </message>
+    <message>
+        <source>Maximum AI steps</source>
+        <translation>Максимум шагов AI</translation>
+    </message>
+    <message>
+        <source>Hide</source>
+        <translation>Скрыть</translation>
+    </message>
+    <message>
+        <source>AI model</source>
+        <translation>Модель AI</translation>
+    </message>
+    <message>
+        <source>Developer logs</source>
+        <translation>Логи для разработчика</translation>
+    </message>
+    <message>
+        <source>Delete API key</source>
+        <translation>Удалить API-ключ</translation>
+    </message>
+    <message>
+        <source>Custom model ID</source>
+        <translation>ID своей модели</translation>
+    </message>
+    <message>
+        <source>Check connection</source>
+        <translation>Проверить подключение</translation>
+    </message>
+    <message>
+        <source>API key</source>
+        <translation>API-ключ</translation>
+    </message>
+</context>
+<context>
     <name>AndroidAddMenu</name>
     <message>
         <source>Add to timeline</source>
@@ -1868,10 +2257,6 @@
     <message>
         <source>Redo</source>
         <translation>Повторить</translation>
-    </message>
-    <message>
-        <source>Export</source>
-        <translation>Экспорт</translation>
     </message>
     <message>
         <source>Show export progress</source>
@@ -9869,6 +10254,57 @@
     </message>
 </context>
 <context>
+    <name>PolzaProvider</name>
+    <message>
+        <source>This API key does not have access.</source>
+        <translation>У этого API-ключа нет доступа.</translation>
+    </message>
+    <message>
+        <source>Invalid API key</source>
+        <translation>Неверный API-ключ</translation>
+    </message>
+    <message>
+        <source>Insufficient funds</source>
+        <translation>Недостаточно средств</translation>
+    </message>
+    <message>
+        <source>Service temporarily unavailable</source>
+        <translation>Сервис временно недоступен</translation>
+    </message>
+    <message>
+        <source>This model does not support tool calling.</source>
+        <translation>Эта модель не поддерживает вызов инструментов.</translation>
+    </message>
+    <message>
+        <source>The provider rejected the request. Check the selected model and try again.</source>
+        <translation>Провайдер отклонил запрос. Проверьте выбранную модель и повторите попытку.</translation>
+    </message>
+    <message>
+        <source>Enter or save the Polza API key first.</source>
+        <translation>Сначала введите и сохраните API-ключ Polza.</translation>
+    </message>
+    <message>
+        <source>The request timed out. Try again.</source>
+        <translation>Время ожидания истекло. Повторите попытку.</translation>
+    </message>
+    <message>
+        <source>This model is unavailable. Select another model in AI settings.</source>
+        <translation>Эта модель недоступна. Выберите другую модель в настройках AI.</translation>
+    </message>
+    <message>
+        <source>The provider returned an incomplete or invalid response.</source>
+        <translation>Провайдер вернул неполный или некорректный ответ.</translation>
+    </message>
+    <message>
+        <source>Request limit exceeded</source>
+        <translation>Превышен лимит запросов</translation>
+    </message>
+    <message>
+        <source>No internet connection</source>
+        <translation>Нет подключения к интернету</translation>
+    </message>
+</context>
+<context>
     <name>PreviewPanel</name>
     <message>
         <source>REC %1s</source>
@@ -15586,446 +16022,6 @@ If the window is blank or black, your graphics driver is most likely outdated or
         <translation>Drift работает уже %1 секунд, но в его окне до сих пор ничего не появилось.
 
 Если окно пустое или чёрное, скорее всего, графический драйвер устарел или неисправен. Обновите его с сайта производителя графического процессора (AMD, NVIDIA или Intel) и снова запустите Drift.</translation>
-    </message>
-</context>
-<context>
-    <name>AgentOrchestrator</name>
-    <message>
-        <source>Done</source>
-        <translation>Готово</translation>
-    </message>
-    <message>
-        <source>Connected</source>
-        <translation>Подключено</translation>
-    </message>
-    <message>
-        <source>AI requested too many operations.</source>
-        <translation>AI запросил слишком много операций.</translation>
-    </message>
-    <message>
-        <source>AI could not perform this operation. The project is kept in its current state.</source>
-        <translation>AI не смог выполнить операцию. Текущее состояние проекта сохранено.</translation>
-    </message>
-    <message>
-        <source>AI made no timeline changes.</source>
-        <translation>AI не изменил timeline.</translation>
-    </message>
-    <message>
-        <source>Requests disabled. Could not completely remove the key; try again.</source>
-        <translation>Запросы отключены. Не удалось полностью удалить ключ; повторите попытку.</translation>
-    </message>
-    <message>
-        <source>Stopping…</source>
-        <translation>Останавливаю…</translation>
-    </message>
-    <message>
-        <source>AI returned an empty plan.</source>
-        <translation>AI вернул пустой план.</translation>
-    </message>
-    <message>
-        <source>Describe what to do with these videos.</source>
-        <translation>Опишите, что сделать с этими видео.</translation>
-    </message>
-    <message>
-        <source>AI stopped</source>
-        <translation>AI остановлен</translation>
-    </message>
-    <message>
-        <source>Analyzing videos…</source>
-        <translation>Анализирую видео…</translation>
-    </message>
-    <message>
-        <source>The project changed. AI stopped without applying a delayed response.</source>
-        <translation>Проект изменился. AI остановлен; запоздалый ответ не применён.</translation>
-    </message>
-    <message>
-        <source>Review the plan</source>
-        <translation>Проверьте план</translation>
-    </message>
-    <message>
-        <source>Tools</source>
-        <translation>Инструменты</translation>
-    </message>
-    <message>
-        <source>AI montage undone</source>
-        <translation>AI-монтаж отменён</translation>
-    </message>
-    <message>
-        <source>Adding captions…</source>
-        <translation>Добавляю субтитры…</translation>
-    </message>
-    <message>
-        <source>Could not save the key securely.</source>
-        <translation>Не удалось безопасно сохранить ключ.</translation>
-    </message>
-    <message>
-        <source>JSON plan</source>
-        <translation>JSON-план</translation>
-    </message>
-    <message>
-        <source>AI step limit reached. The project is kept in its current state.</source>
-        <translation>Достигнут лимит шагов AI. Текущее состояние проекта сохранено.</translation>
-    </message>
-    <message>
-        <source>Before AI montage</source>
-        <translation>До AI-монтажа</translation>
-    </message>
-    <message>
-        <source>Select 1–20 imported videos and wait for import to finish.</source>
-        <translation>Выберите 1–20 импортированных видео и дождитесь завершения импорта.</translation>
-    </message>
-    <message>
-        <source>Stopped</source>
-        <translation>Остановлено</translation>
-    </message>
-    <message>
-        <source>Building the structure…</source>
-        <translation>Собираю структуру…</translation>
-    </message>
-    <message>
-        <source>AI context limit reached. Try fewer clips or shorter requests.</source>
-        <translation>Достигнут предел контекста AI. Выберите меньше клипов или сократите запрос.</translation>
-    </message>
-    <message>
-        <source>Finding the best moments…</source>
-        <translation>Выбираю лучшие моменты…</translation>
-    </message>
-    <message>
-        <source>Switched to GPT-6 Sol after repeated invalid plans.</source>
-        <translation>После повторных ошибок плана выбрана GPT-6 Sol.</translation>
-    </message>
-    <message>
-        <source>Trimming clips…</source>
-        <translation>Подрезаю клипы…</translation>
-    </message>
-    <message>
-        <source>This model has no confirmed image support. Select a vision model or turn off preview sharing.</source>
-        <translation>Поддержка изображений у этой модели не подтверждена. Выберите модель с поддержкой изображений или отключите отправку кадров.</translation>
-    </message>
-    <message>
-        <source>Could not save a recovery snapshot. AI was not started.</source>
-        <translation>Не удалось сохранить снимок для восстановления. AI не запущен.</translation>
-    </message>
-    <message>
-        <source>AI montage</source>
-        <translation>AI-монтаж</translation>
-    </message>
-    <message>
-        <source>Checking connection…</source>
-        <translation>Проверка подключения…</translation>
-    </message>
-    <message>
-        <source>API key deleted</source>
-        <translation>API-ключ удалён</translation>
-    </message>
-    <message>
-        <source>Enter a model ID in provider/model-name format.</source>
-        <translation>Введите ID модели в формате provider/model-name.</translation>
-    </message>
-    <message>
-        <source>Checking the edit…</source>
-        <translation>Проверяю монтаж…</translation>
-    </message>
-    <message>
-        <source>Caption analysis timed out. The project is kept in its current state.</source>
-        <translation>Время анализа речи истекло. Текущее состояние проекта сохранено.</translation>
-    </message>
-    <message>
-        <source>Wait for captions or export to finish before starting AI.</source>
-        <translation>Дождитесь завершения субтитров или экспорта, прежде чем запускать AI.</translation>
-    </message>
-    <message>
-        <source>Key saved</source>
-        <translation>Ключ сохранён</translation>
-    </message>
-    <message>
-        <source>Done. Check the timeline and preview; every edit remains editable.</source>
-        <translation>Готово. Проверьте timeline и предпросмотр; все правки можно изменить вручную.</translation>
-    </message>
-    <message>
-        <source>Could not restore the recovery snapshot.</source>
-        <translation>Не удалось восстановить сохранённый снимок.</translation>
-    </message>
-    <message>
-        <source>Styling text…</source>
-        <translation>Оформляю текст…</translation>
-    </message>
-</context>
-<context>
-    <name>PolzaProvider</name>
-    <message>
-        <source>This API key does not have access.</source>
-        <translation>У этого API-ключа нет доступа.</translation>
-    </message>
-    <message>
-        <source>Invalid API key</source>
-        <translation>Неверный API-ключ</translation>
-    </message>
-    <message>
-        <source>Insufficient funds</source>
-        <translation>Недостаточно средств</translation>
-    </message>
-    <message>
-        <source>Service temporarily unavailable</source>
-        <translation>Сервис временно недоступен</translation>
-    </message>
-    <message>
-        <source>This model does not support tool calling.</source>
-        <translation>Эта модель не поддерживает вызов инструментов.</translation>
-    </message>
-    <message>
-        <source>The provider rejected the request. Check the selected model and try again.</source>
-        <translation>Провайдер отклонил запрос. Проверьте выбранную модель и повторите попытку.</translation>
-    </message>
-    <message>
-        <source>Enter or save the Polza API key first.</source>
-        <translation>Сначала введите и сохраните API-ключ Polza.</translation>
-    </message>
-    <message>
-        <source>The request timed out. Try again.</source>
-        <translation>Время ожидания истекло. Повторите попытку.</translation>
-    </message>
-    <message>
-        <source>This model is unavailable. Select another model in AI settings.</source>
-        <translation>Эта модель недоступна. Выберите другую модель в настройках AI.</translation>
-    </message>
-    <message>
-        <source>The provider returned an incomplete or invalid response.</source>
-        <translation>Провайдер вернул неполный или некорректный ответ.</translation>
-    </message>
-    <message>
-        <source>Request limit exceeded</source>
-        <translation>Превышен лимит запросов</translation>
-    </message>
-    <message>
-        <source>No internet connection</source>
-        <translation>Нет подключения к интернету</translation>
-    </message>
-</context>
-<context>
-    <name>AiSettingsPane</name>
-    <message>
-        <source>Save</source>
-        <translation>Сохранить</translation>
-    </message>
-    <message>
-        <source>Custom model</source>
-        <translation>Своя модель</translation>
-    </message>
-    <message>
-        <source>GPT-6 Luna — fast and economical</source>
-        <translation>GPT-6 Luna — быстро и экономно</translation>
-    </message>
-    <message>
-        <source>Key saved — enter a new key to replace it</source>
-        <translation>Ключ сохранён — введите новый для замены</translation>
-    </message>
-    <message>
-        <source>On desktop the key is kept only for this session. Android uses Keystore.</source>
-        <translation>На компьютере ключ хранится только в текущем сеансе. На Android используется Keystore.</translation>
-    </message>
-    <message>
-        <source>Video editing runs on your device. When using AI, your prompt and selected frames/previews may be sent to the selected AI provider. Original videos are not uploaded automatically.</source>
-        <translation>Монтаж выполняется на устройстве. При использовании AI ваш запрос и выбранные кадры могут отправляться AI-провайдеру. Исходные видео автоматически не загружаются.</translation>
-    </message>
-    <message>
-        <source>Show</source>
-        <translation>Показать</translation>
-    </message>
-    <message>
-        <source>Auto</source>
-        <translation>Авто</translation>
-    </message>
-    <message>
-        <source>Model availability, tools and image support are checked at runtime. Auto uses Luna; maximum quality uses Sol.</source>
-        <translation>Доступность модели, инструментов и изображений проверяется при запуске. В режиме «Авто» используется Luna, для максимального качества — Sol.</translation>
-    </message>
-    <message>
-        <source>GPT-6 Sol — complex editing</source>
-        <translation>GPT-6 Sol — сложный монтаж</translation>
-    </message>
-    <message>
-        <source>Maximum AI steps</source>
-        <translation>Максимум шагов AI</translation>
-    </message>
-    <message>
-        <source>Hide</source>
-        <translation>Скрыть</translation>
-    </message>
-    <message>
-        <source>AI model</source>
-        <translation>Модель AI</translation>
-    </message>
-    <message>
-        <source>Developer logs</source>
-        <translation>Логи для разработчика</translation>
-    </message>
-    <message>
-        <source>Delete API key</source>
-        <translation>Удалить API-ключ</translation>
-    </message>
-    <message>
-        <source>Custom model ID</source>
-        <translation>ID своей модели</translation>
-    </message>
-    <message>
-        <source>Check connection</source>
-        <translation>Проверить подключение</translation>
-    </message>
-    <message>
-        <source>API key</source>
-        <translation>API-ключ</translation>
-    </message>
-</context>
-<context>
-    <name>AiMontagePane</name>
-    <message>
-        <source>Duration</source>
-        <translation>Длительность</translation>
-    </message>
-    <message>
-        <source>Show the plan first</source>
-        <translation>Сначала показать план</translation>
-    </message>
-    <message>
-        <source>Beauty / Lashmaker</source>
-        <translation>Beauty / Лэшмейкер</translation>
-    </message>
-    <message>
-        <source>Allow selected frames/previews to be sent to Polza</source>
-        <translation>Разрешить отправку выбранных кадров в Polza</translation>
-    </message>
-    <message>
-        <source>What should I do with these videos?</source>
-        <translation>Что сделать с этими видео?</translation>
-    </message>
-    <message>
-        <source>Captions</source>
-        <translation>Субтитры</translation>
-    </message>
-    <message>
-        <source>Russian</source>
-        <translation>Русский</translation>
-    </message>
-    <message>
-        <source>Dynamic</source>
-        <translation>Динамичный</translation>
-    </message>
-    <message>
-        <source>Choose 2–20 videos</source>
-        <translation>Выберите 2–20 видео</translation>
-    </message>
-    <message>
-        <source>Make Reel</source>
-        <translation>Сделать Reel</translation>
-    </message>
-    <message>
-        <source>Work process</source>
-        <translation>Рабочий процесс</translation>
-    </message>
-    <message>
-        <source>Before / after</source>
-        <translation>До / после</translation>
-    </message>
-    <message>
-        <source>Expert</source>
-        <translation>Экспертный</translation>
-    </message>
-    <message>
-        <source>Make a premium 20-second beauty Reel. Start with the result, show the process, add Russian captions and a booking CTA.</source>
-        <translation>Сделай дорогой beauty-Reel на 20 секунд. Начни с результата, покажи процесс, добавь русские субтитры и приглашение записаться.</translation>
-    </message>
-    <message>
-        <source>Off</source>
-        <translation>Выкл.</translation>
-    </message>
-    <message>
-        <source>Editing stays on this device. Your prompt, project context and allowed previews are sent to Polza. Original videos are not uploaded.</source>
-        <translation>Монтаж выполняется на устройстве. Запрос, контекст проекта и разрешённые кадры отправляются в Polza. Исходные видео не загружаются.</translation>
-    </message>
-    <message>
-        <source>Maximum quality</source>
-        <translation>Максимальное качество</translation>
-    </message>
-    <message>
-        <source>Auto</source>
-        <translation>Авто</translation>
-    </message>
-    <message>
-        <source>Step %1 / %2 · %3</source>
-        <translation>Шаг %1 / %2 · %3</translation>
-    </message>
-    <message>
-        <source>Importing…</source>
-        <translation>Импорт…</translation>
-    </message>
-    <message>
-        <source>Minimal</source>
-        <translation>Минимализм</translation>
-    </message>
-    <message>
-        <source>Back to timeline</source>
-        <translation>Вернуться к timeline</translation>
-    </message>
-    <message>
-        <source>Undo AI montage</source>
-        <translation>Отменить AI-монтаж</translation>
-    </message>
-    <message>
-        <source>Talking</source>
-        <translation>Разговорный</translation>
-    </message>
-    <message>
-        <source>Aspect ratio</source>
-        <translation>Формат кадра</translation>
-    </message>
-    <message>
-        <source>Open Addon Manager</source>
-        <translation>Открыть дополнения</translation>
-    </message>
-    <message>
-        <source>Change plan</source>
-        <translation>Изменить план</translation>
-    </message>
-    <message>
-        <source>%1 seconds</source>
-        <translation>%1 секунд</translation>
-    </message>
-    <message>
-        <source>Choose no more than 20 videos at a time.</source>
-        <translation>Выберите не более 20 видео за один раз.</translation>
-    </message>
-    <message>
-        <source>To music</source>
-        <translation>Под музыку</translation>
-    </message>
-    <message>
-        <source>Install the local Whisper addon to generate captions. The agent will report if a required addon is missing.</source>
-        <translation>Для субтитров установите локальное дополнение Whisper. Агент сообщит, если нужное дополнение отсутствует.</translation>
-    </message>
-    <message>
-        <source>Import videos from phone</source>
-        <translation>Выбрать видео из галереи</translation>
-    </message>
-    <message>
-        <source>Undo AI returns the project to its state before this run, including any edits made afterwards.</source>
-        <translation>Отмена AI вернёт проект к состоянию до этого запуска, включая отмену последующих ручных правок.</translation>
-    </message>
-    <message>
-        <source>Stop</source>
-        <translation>Остановить</translation>
-    </message>
-    <message>
-        <source>Videos selected: %1 / 20</source>
-        <translation>Выбрано видео: %1 / 20</translation>
-    </message>
-    <message>
-        <source>Assemble</source>
-        <translation>Собрать</translation>
-    </message>
-    <message>
-        <source>AI settings — Polza.AI</source>
-        <translation>Настройки AI — Polza.AI</translation>
     </message>
 </context>
 </TS>

@@ -457,6 +457,395 @@
     </message>
 </context>
 <context>
+    <name>AgentOrchestrator</name>
+    <message>
+        <source>Tools</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>JSON plan</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Key saved</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Could not save the key securely.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>API key deleted</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Requests disabled. Could not completely remove the key; try again.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Checking connection…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Describe what to do with these videos.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Select 1–20 imported videos and wait for import to finish.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Wait for captions or export to finish before starting AI.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Enter a model ID in provider/model-name format.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Before AI montage</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Could not save a recovery snapshot. AI was not started.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Analyzing videos…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The project changed. AI stopped without applying a delayed response.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This model has no confirmed image support. Select a vision model or turn off preview sharing.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Connected</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>AI returned an empty plan.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Review the plan</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>AI requested too many operations.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>AI made no timeline changes.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Done. Check the timeline and preview; every edit remains editable.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>AI step limit reached. The project is kept in its current state.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Building the structure…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Checking the edit…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Finding the best moments…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>AI context limit reached. Try fewer clips or shorter requests.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Adding captions…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Styling text…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Trimming clips…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>AI montage</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>AI could not perform this operation. The project is kept in its current state.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Switched to GPT-6 Sol after repeated invalid plans.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Caption analysis timed out. The project is kept in its current state.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Stopping…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Stopped</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>AI montage undone</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Could not restore the recovery snapshot.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Done</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>AI stopped</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>AiMontagePane</name>
+    <message>
+        <source>Beauty / Lashmaker</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Before / after</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Expert</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Talking</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Dynamic</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Minimal</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>To music</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Work process</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>What should I do with these videos?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Make a premium 20-second beauty Reel. Start with the result, show the process, add Russian captions and a booking CTA.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Videos selected: %1 / 20</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Import videos from phone</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Choose 2–20 videos</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Choose no more than 20 videos at a time.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Importing…</source>
+        <translation type="unfinished">Importando…</translation>
+    </message>
+    <message>
+        <source>Duration</source>
+        <translation type="unfinished">Duração</translation>
+    </message>
+    <message>
+        <source>%1 seconds</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Aspect ratio</source>
+        <translation type="unfinished">Proporção</translation>
+    </message>
+    <message>
+        <source>Captions</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Auto</source>
+        <translation type="unfinished">Automático</translation>
+    </message>
+    <message>
+        <source>Russian</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Off</source>
+        <translation type="unfinished">Desativado</translation>
+    </message>
+    <message>
+        <source>Install the local Whisper addon to generate captions. The agent will report if a required addon is missing.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Open Addon Manager</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Show the plan first</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Maximum quality</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Allow selected frames/previews to be sent to Polza</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Editing stays on this device. Your prompt, project context and allowed previews are sent to Polza. Original videos are not uploaded.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>AI settings — Polza.AI</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Step %1 / %2 · %3</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Undo AI returns the project to its state before this run, including any edits made afterwards.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Assemble</source>
+        <translation type="unfinished">Montar</translation>
+    </message>
+    <message>
+        <source>Make Reel</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Stop</source>
+        <translation type="unfinished">Parar</translation>
+    </message>
+    <message>
+        <source>Change plan</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Undo AI montage</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Back to timeline</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>AiSettingsPane</name>
+    <message>
+        <source>Auto</source>
+        <translation type="unfinished">Automático</translation>
+    </message>
+    <message>
+        <source>GPT-6 Luna — fast and economical</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>GPT-6 Sol — complex editing</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Custom model</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>API key</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Key saved — enter a new key to replace it</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Hide</source>
+        <translation type="unfinished">Ocultar</translation>
+    </message>
+    <message>
+        <source>Show</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Save</source>
+        <translation type="unfinished">Salvar</translation>
+    </message>
+    <message>
+        <source>Check connection</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Delete API key</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>On desktop the key is kept only for this session. Android uses Keystore.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>AI model</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Custom model ID</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Model availability, tools and image support are checked at runtime. Auto uses Luna; maximum quality uses Sol.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Maximum AI steps</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Developer logs</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Video editing runs on your device. When using AI, your prompt and selected frames/previews may be sent to the selected AI provider. Original videos are not uploaded automatically.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>AndroidAddMenu</name>
     <message>
         <source>Add to timeline</source>
@@ -707,6 +1096,10 @@
     <message>
         <source>Open Project</source>
         <translation>Abrir projeto</translation>
+    </message>
+    <message>
+        <source>AI Montage</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Your timeline is empty</source>
@@ -1864,8 +2257,8 @@
         <translation>Refazer</translation>
     </message>
     <message>
-        <source>Export</source>
-        <translation>Exportar</translation>
+        <source>Export Reel</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Show export progress</source>
@@ -4393,6 +4786,14 @@
         <translation>Nada neste dispositivo pode reproduzir esse arquivo</translation>
     </message>
     <message>
+        <source>Saving video to phone…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Video saved to phone</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Getting your video ready to share…</source>
         <translation>Preparando seu vídeo para compartilhar…</translation>
     </message>
@@ -6894,6 +7295,14 @@
         <translation>Exportação cancelada.</translation>
     </message>
     <message>
+        <source>Instagram Reels — 1080×1920 · H.264/AAC · 30 fps</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The Reels preset changes the project canvas to 9:16. Check framing in the preview before exporting.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Video</source>
         <translation>Vídeo</translation>
     </message>
@@ -7051,6 +7460,10 @@
     <message>
         <source>Export finished.</source>
         <translation>Exportação concluída.</translation>
+    </message>
+    <message>
+        <source>Save to phone</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Play</source>
@@ -9797,6 +10210,57 @@
     </message>
 </context>
 <context>
+    <name>PolzaProvider</name>
+    <message>
+        <source>Enter or save the Polza API key first.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Invalid API key</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Insufficient funds</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This API key does not have access.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Request limit exceeded</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Service temporarily unavailable</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No internet connection</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The request timed out. Try again.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The provider returned an incomplete or invalid response.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This model does not support tool calling.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This model is unavailable. Select another model in AI settings.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The provider rejected the request. Check the selected model and try again.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>PreviewPanel</name>
     <message>
         <source>REC %1s</source>
@@ -11465,6 +11929,26 @@ Se a reprodução travar, experimente outro.</translation>
     <message>
         <source>Transcription model</source>
         <translation>Modelo de transcrição</translation>
+    </message>
+    <message>
+        <source>About Reels AI Editor</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Independent project based on Drift by CutWire Studios. Licensed under GNU GPLv3. Original copyright notices and the source code are preserved.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Drift source code</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Reels AI Editor source and GPLv3</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>AI</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Marketplace</source>
