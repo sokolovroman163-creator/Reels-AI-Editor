@@ -7,10 +7,12 @@
 ## Текущее состояние
 
 Исходники скачаны и изучены. AI-функции добавлены поверх существующего dispatcher.
-Полная Linux-компиляция приложения и 14 функциональных наборов CTest прошли в
-[запуске #5](https://github.com/sokolovroman163-creator/Reels-AI-Editor/actions/runs/37219558103).
-Единственная ошибка этого запуска — синхронизация translation catalogs — исправлена
-каталогами, сформированными штатным Qt lupdate; финальные проверки выполняются в CI.
+Полная компиляция приложения и CTest прошли на Linux и macOS в
+[запуске #8](https://github.com/sokolovroman163-creator/Reels-AI-Editor/actions/runs/37220696112).
+Переводы синхронизированы штатным Qt lupdate. Полный подписанный Android APK:
+[Reels AI Android #8](https://github.com/sokolovroman163-creator/Reels-AI-Editor/actions/runs/37220696304),
+commit `2a5de1653b162eb4a046ea384291790e74d162c8`, artifact `11309289683`.
+Запуск на телефоне, настоящий Polza и качество Beauty/Whisper требуют проверки на устройстве.
 Контрольная сборка неизменённого upstream завершилась успешно:
 https://github.com/sokolovroman163-creator/Reels-AI-Editor/actions/runs/37212332391,
 job `111465868433`, artifact `11308010476`. Полный APK подписан debug-сертификатом;
@@ -100,13 +102,14 @@ https://github.com/sokolovroman163-creator/Reels-AI-Editor.
 ## CI и artifacts
 
 `.github/workflows/reels-ai-android.yml` вызывает reusable workflow
-`reels-android-build.yml`. Первый job — pinned upstream baseline; второй зависит
-от его успешного окончания. Native dependencies и ccache кешируются. Skia включена:
+`reels-android-build.yml`. Первый job проверяет успешную полную сборку pinned upstream;
+при `rebuild_upstream` он заменяется повторной полной контрольной сборкой. Наша
+сборка зависит от успешного результата этой проверки. Native dependencies и ccache кешируются. Skia включена:
 без неё тексты и титры не рисуются. Qt 6.11.1, NDK 27.2.12479018, SDK 36 совпадают
 со штатной Android-конфигурацией.
 
 Baseline artifact: `Drift-upstream-arm64-v8a`, файл `Drift-upstream-arm64-v8a.apk`.
-Наша identity artifact: `ReelsAI-arm64-v8a`, файл `ReelsAI-arm64-v8a.apk`.
+Наш artifact: `ReelsAI-arm64-v8a`, файл `ReelsAI-arm64-v8a.apk`.
 Новые исходники включают AI-монтаж. Зелёный APK подтверждает сборку и подпись;
 функциональные проверки с настоящим Polza и на устройстве учитываются отдельно.
 

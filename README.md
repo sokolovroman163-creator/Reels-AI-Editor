@@ -1,3 +1,8 @@
+> **Reels AI Editor — independent Android fork of Drift.**
+> AI montage, APK builds, installation and verification: [README_REELS_AI.md](README_REELS_AI.md).
+> This fork is based on Drift by CutWire Studios and retains GPLv3 and the original notices.
+> The upstream README is preserved below.
+
 <p align="center">
   <img src="Drift_icon.png" alt="Drift icon" width="128" height="128">
 </p>

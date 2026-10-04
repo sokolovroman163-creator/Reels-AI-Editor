@@ -16,6 +16,26 @@
 
 ## Автоматическая проверка AI
 
+Финальный commit APK: `2a5de1653b162eb4a046ea384291790e74d162c8`.
+
+| Проверка | Результат | Подтверждение |
+| --- | --- | --- |
+| Linux build и CTest | **pass**, все 15 наборов | [Tests #8](https://github.com/sokolovroman163-creator/Reels-AI-Editor/actions/runs/37220696112), job `111490327353` |
+| macOS build и CTest | **pass**, все наборы | Тот же запуск, job `111490327220` |
+| Штатный Android native CI | **pass** | [Android #8](https://github.com/sokolovroman163-creator/Reels-AI-Editor/actions/runs/37220696155) |
+| Полный APK, zipalign, apksigner, package/ABI | **pass** | [Reels AI Android #8](https://github.com/sokolovroman163-creator/Reels-AI-Editor/actions/runs/37220696304), job `111490342128` |
+| Целостность скачанного artifact и APK | **pass** | ZIP SHA-256 `4b278aa8ba64c0a430cf8fd884c6ca1c2681c00cb6f6f4eaa9646031fcbd8421`; APK SHA-256 `0214b90d539ccc7dc55fc9a2a8055c4b8195c216c7e0aca26c3000ace984807e` совпали |
+| Упаковка Keystore helper и backup exclusions | **pass** | В DEX есть `org.cutwire.drift.PolzaKeyStore`, alias/prefs; оба скомпилированных XML ресурса исключают `reelsai_polza_secret.xml` |
+| Android runtime / реальный Polza / Whisper ru / Beauty-качество | **не проверено** | Требуется устройство и ключ, введённый пользователем в приложение |
+
+Проверка Translations теперь проходит на обоих платформах. Дополнительно проверены
+три попытки получить превью невыбранного медиа: clip ID, track/index и capture всего
+timeline. В запросе остаётся только исходный contact sheet выбранного видео, проект
+не меняется. APK: Android API 28+, target/compile SDK 36, `arm64-v8a`, название
+Reels AI Editor, package `app.reelsai.editor`, тестовая debug-подпись.
+
+Предыдущий этап проверки:
+
 Linux CI [#5](https://github.com/sokolovroman163-creator/Reels-AI-Editor/actions/runs/37219558103),
 commit `ecb03999986669f29e8e50bb33581e2a561b2075`: полная компиляция — **pass**,
 14 функциональных наборов — **pass**. Проверены реальные MCP-правки двух сегментов

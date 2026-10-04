@@ -5,8 +5,21 @@ Android-версия для автоматического и ручного м�
 Это независимая производная сборка; она не является официальным Drift.
 Исходная лицензия GPLv3 и notices находятся в [LICENSE](LICENSE).
 
-**Статус: контрольный upstream APK собран и подписан. AI-монтаж скомпилирован;
-14 функциональных наборов CTest прошли на Linux. Финальная Android-сборка выполняется в CI.**
+**Статус: тестовый APK Reels AI Editor собран и подписан. CTest полностью прошёл
+на Linux и macOS, штатная Android-компиляция также прошла. Проверки на телефоне
+и с настоящим Polza-ключом пока не выполнены.**
+
+Готовая сборка: [Reels AI Android #8](https://github.com/sokolovroman163-creator/Reels-AI-Editor/actions/runs/37220696304),
+[artifact ReelsAI-arm64-v8a](https://github.com/sokolovroman163-creator/Reels-AI-Editor/actions/runs/37220696304/artifacts/11309289683).
+Распакуйте ZIP и перенесите `ReelsAI-arm64-v8a.apk` на Android 9+ с ABI arm64-v8a.
+Package ID — `app.reelsai.editor`, видимое название — Reels AI Editor.
+Ключ Polza вводится только после установки: «Настройки → AI → Polza.AI».
+
+Commit APK: `2a5de1653b162eb4a046ea384291790e74d162c8`.
+SHA-256 APK: `0214b90d539ccc7dc55fc9a2a8055c4b8195c216c7e0aca26c3000ace984807e`.
+Artifact хранится в Actions 14 дней; сохраните скачанный APK и исходники.
+Результаты и ограничения: [протокол проверки](docs/REELS_AI_ACCEPTANCE.md).
+
 Контрольная сборка: [Reels AI Android #1](https://github.com/sokolovroman163-creator/Reels-AI-Editor/actions/runs/37212332391),
 artifact `Drift-upstream-arm64-v8a`. Подтверждены полный APK, package
 `org.cutwire.drift` и ABI `arm64-v8a`; это исходный редактор, не AI beta.
@@ -87,7 +100,8 @@ Auto использует `openai/gpt-6-luna`, режим максимально
 
 Монтаж выполняется локально через существующий MCP dispatcher, без localhost.
 В Polza отправляются запрос, контекст проекта и разрешённые кадры. Исходные видео
-не загружаются. Отправку кадров можно отключить; тогда модель не анализирует
+не загружаются. Кадры ограничены выбранными видео, включая ссылки на timeline-клипы.
+Общий capture запрещён, если timeline содержит невыбранные медиа. Отправку кадров можно отключить; тогда модель не анализирует
 изображения. AI не может открывать другие проекты, выполнять код, импортировать
 файлы по путям/URL или автоматически экспортировать/публиковать видео.
 
