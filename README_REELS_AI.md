@@ -5,8 +5,8 @@ Android-версия для автоматического и ручного м�
 Это независимая производная сборка; она не является официальным Drift.
 Исходная лицензия GPLv3 и notices находятся в [LICENSE](LICENSE).
 
-**Статус: контрольный upstream APK собран и подписан. AI-монтаж добавлен в исходники;
-сборка и функциональная проверка этой версии выполняются в CI.**
+**Статус: контрольный upstream APK собран и подписан. AI-монтаж скомпилирован;
+14 функциональных наборов CTest прошли на Linux. Финальная Android-сборка выполняется в CI.**
 Контрольная сборка: [Reels AI Android #1](https://github.com/sokolovroman163-creator/Reels-AI-Editor/actions/runs/37212332391),
 artifact `Drift-upstream-arm64-v8a`. Подтверждены полный APK, package
 `org.cutwire.drift` и ABI `arm64-v8a`; это исходный редактор, не AI beta.
@@ -19,10 +19,13 @@ artifact `Drift-upstream-arm64-v8a`. Подтверждены полный APK, 
 
 1. Создать fork основного `CutWire-Studios/Drift` и добавить файлы этой ветки.
 2. Открыть Actions → Reels AI Android → Run workflow.
-3. Дождаться baseline, затем Reels identity build. Первая сборка native dependencies
-   и Skia может занимать долгое время; дальше используется cache.
+3. Workflow проверит успешную полную сборку закреплённого upstream-коммита, затем
+   соберёт Reels AI Editor. Для повторной контрольной сборки включите
+   `rebuild_upstream`. Первая сборка native dependencies и Skia может занимать
+   долгое время; дальше используется cache.
 4. На странице успешного запуска скачать artifact `ReelsAI-arm64-v8a` и распаковать
-   `ReelsAI-arm64-v8a.apk`. Baseline отдельно: `Drift-upstream-arm64-v8a`.
+   `ReelsAI-arm64-v8a.apk`. При повторной контрольной сборке baseline доступен
+   отдельно: `Drift-upstream-arm64-v8a`.
 
 Workflow проверяет APK подпись и package ID `app.reelsai.editor`. Без release Secrets
 используется тестовая debug-подпись. Она меняется между запусками: для обновления
