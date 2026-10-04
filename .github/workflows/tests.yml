@@ -188,9 +188,6 @@ jobs:
 
       # Everything, not just the test targets: this is the only workflow that sees an ordinary
       # commit, so the app link and QML compilation should be covered here too.
-      - name: Build
-        run: cmake --build build --parallel
-
       - name: Capture canonical translation catalogs for review
         shell: bash
         run: |
@@ -205,6 +202,9 @@ jobs:
           name: translation-review-${{ runner.os }}
           path: build/translation-review/
           retention-days: 7
+
+      - name: Build
+        run: cmake --build build --parallel
 
       # Deliberately not QT_QPA_PLATFORM=offscreen: that plugin cannot create an OpenGL context
       # on a runner with no /dev/dri, so every compositor test would render a null QImage and
@@ -326,9 +326,6 @@ jobs:
             -DDRIFT_BUNDLE_ONNXRUNTIME=OFF \
             -DDRIFT_WITH_SKIA=ON
 
-      - name: Build
-        run: cmake --build build --parallel
-
       - name: Capture canonical translation catalogs for review
         shell: bash
         run: |
@@ -343,6 +340,9 @@ jobs:
           name: translation-review-${{ runner.os }}
           path: build/translation-review/
           retention-days: 7
+
+      - name: Build
+        run: cmake --build build --parallel
 
       # No xvfb and no QT_QPA_PLATFORM override: the runner has a real window server, so the
       # compositor tests get a genuine OpenGL context. Serial for the same reason as the Linux

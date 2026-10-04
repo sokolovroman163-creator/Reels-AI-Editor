@@ -55,7 +55,8 @@ Column {
             height: Theme.androidMinTouchTarget
             text: qsTr("Delete API key")
             variant: "destructive"
-            enabled: ReelsAI.keySaved || ReelsAI.checkingConnection
+            // Idempotent and available for retry even after partial storage deletion.
+            enabled: true
             onClicked: { ReelsAI.deleteKey(); keyField.clear(); root.reveal = false }
         }
     }

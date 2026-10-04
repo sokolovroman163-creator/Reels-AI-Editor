@@ -4,6 +4,7 @@
 #include "models/AssetLibrary.h"
 #include "core/Project.h"
 #include "mcp/McpJson.h"
+#include "mcp/McpCatalog.h"
 #include <QJsonDocument>
 #include <QSettings>
 #include <QRegularExpression>
@@ -167,7 +168,7 @@ void AgentOrchestrator::received(quint64 id, const QJsonObject &response) {
     m_request = 0;
     if (m_checking) {
         m_checking = false;
-        m_connection = response.contains(QStringLiteral("label")) ? tr("Connected") : PolzaProvider::errorMessage(QStringLiteral("malformed"));
+        m_connection = !response.value(QStringLiteral("label")).toString().isEmpty() ? tr("Connected") : PolzaProvider::errorMessage(QStringLiteral("malformed"));
         emit stateChanged(); return;
     }
     if (!guard()) return;
@@ -258,7 +259,8 @@ void AgentOrchestrator::prepareFrame(int index, quint64 session) {
 }
 void AgentOrchestrator::next() {
     if (!guard()) return;
-    if (++m_step > m_maxSteps) { finish(tr("AI step limit reached. The project is kept in its current state.")); return; }
+    if (m_step >= m_maxSteps) { finish(tr("AI step limit reached. The project is kept in its current state.")); return; }
+    ++m_step;
     m_stage = m_planFirst ? tr("Building the structure…") : (m_mutations ? tr("Checking the edit…") : tr("Finding the best moments…"));
     QJsonObject payload{{QStringLiteral("model"),m_model},{QStringLiteral("messages"),m_messages},{QStringLiteral("max_tokens"),8192}};
     if (m_describingPlan) {

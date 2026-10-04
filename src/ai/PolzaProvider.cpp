@@ -136,13 +136,14 @@ QString PolzaProvider::errorCode(int status, const QByteArray &body) {
     if (status == 401) return QStringLiteral("unauthorized");
     if (status == 402) return QStringLiteral("balance");
     if (status == 403) return QStringLiteral("forbidden");
+    if (status == 408) return QStringLiteral("timeout");
     if (status == 429) return QStringLiteral("rate_limit");
     if (status >= 500) return QStringLiteral("server");
     if (status == 400 || status == 404) {
         const auto error = QJsonDocument::fromJson(body).object().value(QStringLiteral("error")).toObject();
         const QString text = (error.value(QStringLiteral("code")).toString() + QLatin1Char(' ') + error.value(QStringLiteral("message")).toString()).toLower();
-        if (text.contains(QLatin1String("tool")) && (text.contains(QLatin1String("unsupported")) || text.contains(QLatin1String("not supported")))) return QStringLiteral("unsupported_tools");
-        if (text.contains(QLatin1String("model")) && (text.contains(QLatin1String("not found")) || text.contains(QLatin1String("unavailable")) || text.contains(QLatin1String("model_not_found")))) return QStringLiteral("model_unavailable");
+        if (text.contains(QLatin1String("tool")) && (text.contains(QLatin1String("unsupported")) || text.contains(QLatin1String("not supported")) || text.contains(QLatin1String("does not support")) || text.contains(QLatin1String("not_supported")))) return QStringLiteral("unsupported_tools");
+        if (text.contains(QLatin1String("model")) && (text.contains(QLatin1String("not found")) || text.contains(QLatin1String("unavailable")) || text.contains(QLatin1String("not available")) || text.contains(QLatin1String("model_not_found")))) return QStringLiteral("model_unavailable");
     }
     return QStringLiteral("bad_request");
 }

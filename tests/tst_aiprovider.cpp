@@ -68,9 +68,11 @@ void AiProviderTest::httpErrors_data() {
     QTest::newRow("invalid key") << 401 << QByteArray("private provider prose") << QStringLiteral("unauthorized");
     QTest::newRow("balance") << 402 << QByteArray("{}") << QStringLiteral("balance");
     QTest::newRow("access") << 403 << QByteArray("{}") << QStringLiteral("forbidden");
+    QTest::newRow("provider timeout") << 408 << QByteArray("{}") << QStringLiteral("timeout");
     QTest::newRow("rate limit") << 429 << QByteArray("{}") << QStringLiteral("rate_limit");
     QTest::newRow("server") << 500 << QByteArray("{}") << QStringLiteral("server");
     QTest::newRow("unsupported tools") << 400 << QByteArray("{\"error\":{\"message\":\"tools not supported\"}}") << QStringLiteral("unsupported_tools");
+    QTest::newRow("tools alternative wording") << 400 << QByteArray("{\"error\":{\"message\":\"This model does not support tools\"}}") << QStringLiteral("unsupported_tools");
     QTest::newRow("missing model") << 404 << QByteArray("{\"error\":{\"code\":\"model_not_found\"}}") << QStringLiteral("model_unavailable");
 }
 void AiProviderTest::httpErrors() {

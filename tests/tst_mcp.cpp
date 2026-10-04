@@ -60,6 +60,7 @@ private slots:
     void aiMontageAndUndo();
     void aiCancelAndProjectGuard();
     void aiInvalidBatchDoesNotEdit();
+    void aiStepLimitStopsReadLoop();
     void framesImportedAssetIsReadOnly();
     void catalogListsToolboxes();
     void sceneToolboxExposesSchemas();
@@ -6175,11 +6176,11 @@ void McpTest::aiCancelAndProjectGuard() {
     AiHttpFixture fixture; fixture.handler = [](const auto &r) { if (r.path.endsWith("/models")) AiHttpFixture::jsonReply(r,aiFixtureModels()); };
     AgentOrchestrator agent(&state,nullptr,fixture.base()); agent.setModelChoice(QStringLiteral("custom")); agent.setCustomModel(QStringLiteral("fixture/model")); QVERIFY(agent.saveKey(QStringLiteral("pza_TEST_FIXTURE_ONLY")));
     const auto delayed = aiFixtureMessage(QString(),{aiFixtureCall(QStringLiteral("set_project_setup"),{{QStringLiteral("width"),1080},{QStringLiteral("height"),1920},{QStringLiteral("fps"),30}},QStringLiteral("late"))});
-    for (int mode = 0; mode < 2; ++mode) {
+    for (int mode = 0; mode < 3; ++mode) {
         const int expected = fixture.requests.size()+2;
         agent.start(QStringLiteral("Монтаж"),QStringLiteral("beauty"),20,QStringLiteral("9:16"),QStringLiteral("off"),false,false,false,{asset});
         QTRY_COMPARE(fixture.requests.size(),expected);
-        if (mode == 0) agent.stop(); else state.setProjectSetup(640,480,25);
+        if (mode == 0) agent.stop(); else if (mode == 1) state.setProjectSetup(640,480,25); else state.newProject(true);
         const auto hash = state.mcpTakeSnapshot(QString()).value(QStringLiteral("hash"));
         AiHttpFixture::jsonReply(fixture.requests.last(),delayed);
         QTRY_VERIFY(!agent.busy()); QTest::qWait(100);
@@ -6213,6 +6214,23 @@ void McpTest::framesImportedAssetIsReadOnly() {
     QCOMPARE(state.mcpTakeSnapshot(QString()).value(QStringLiteral("hash")),hash);
     QVERIFY(!imageBlock(raw).value(QStringLiteral("data")).toString().isEmpty());
     QVERIFY(dispatcher.frames({{QStringLiteral("asset"),asset},{QStringLiteral("track"),0},{QStringLiteral("index"),0}}).value(QStringLiteral("ok")).toBool() == false);
+}
+
+void McpTest::aiStepLimitStopsReadLoop() {
+    if (ffmpegPath().isEmpty()) QSKIP("ffmpeg unavailable");
+    QTemporaryDir dir; const auto source = dir.filePath(QStringLiteral("shots.mp4")); QVERIFY(writeFourShotClip(source));
+    AssetLibrary library; AppController state(&library); drift::mcp::McpDispatcher dispatcher(&state);
+    const auto asset = aiFixtureImport(dispatcher,source); QVERIFY(!asset.isEmpty());
+    AiHttpFixture fixture; int chats = 0;
+    fixture.handler = [&](const auto &r) {
+        if (r.path.endsWith("/models")) AiHttpFixture::jsonReply(r,aiFixtureModels(false));
+        else { ++chats; AiHttpFixture::jsonReply(r,aiFixtureMessage(QStringLiteral("[{\"tool\":\"inspect\",\"args\":{}}]"))); }
+    };
+    AgentOrchestrator agent(&state,nullptr,fixture.base()); agent.setModelChoice(QStringLiteral("custom")); agent.setCustomModel(QStringLiteral("fixture/model")); agent.setMaxAgentSteps(5);
+    QVERIFY(agent.saveKey(QStringLiteral("pza_TEST_FIXTURE_ONLY")));
+    agent.start(QStringLiteral("Монтаж"),QStringLiteral("beauty"),20,QStringLiteral("9:16"),QStringLiteral("off"),false,false,false,{asset});
+    QTRY_VERIFY_WITH_TIMEOUT(!agent.busy(),10000); QCOMPARE(chats,5); QCOMPARE(agent.step(),5); QVERIFY(!agent.canUndo());
+    agent.setMaxAgentSteps(18);
 }
 
 QTEST_MAIN(McpTest)
