@@ -1,0 +1,194 @@
+name: Reels Android build (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      source_repository:
+        required: true
+        type: string
+      source_ref:
+        required: true
+        type: string
+      package_name:
+        required: true
+        type: string
+      app_name:
+        required: true
+        type: string
+      artifact_name:
+        required: true
+        type: string
+    secrets:
+      ANDROID_KEYSTORE_BASE64:
+        required: false
+      ANDROID_KEYSTORE_PASSWORD:
+        required: false
+      ANDROID_KEY_ALIAS:
+        required: false
+
+permissions:
+  contents: read
+
+env:
+  QT_VERSION: 6.11.1
+  QT_ANDROID_MODULES: qtmultimedia qtshadertools qtimageformats
+  NDK_VERSION: 27.2.12479018
+  ABI: arm64-v8a
+
+jobs:
+  apk:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.source_repository }}
+          ref: ${{ inputs.source_ref }}
+          persist-credentials: false
+
+      - name: Record exact source
+        run: |
+          test -z "$(git status --porcelain)"
+          git rev-parse HEAD | tee source-commit.txt
+
+      - name: Free runner disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/node_modules \
+            /opt/ghc /opt/hostedtoolcache/CodeQL /usr/local/share/powershell
+          SDK="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
+          sudo rm -rf "$SDK/ndk"
+          df -h /
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Resolve Android SDK paths
+        run: |
+          SDK="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
+          echo "ANDROID_SDK_ROOT=$SDK" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK_ROOT=$SDK/ndk/$NDK_VERSION" >> "$GITHUB_ENV"
+
+      - name: Install host build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            ninja-build nasm meson pkg-config ccache \
+            libgl1 libegl1 libxkbcommon0 libfontconfig1
+
+      - name: Install Android NDK and SDK 36
+        run: |
+          SDKMANAGER="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKMANAGER" --licenses >/dev/null
+          "$SDKMANAGER" --install "ndk;$NDK_VERSION" "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Install matching Qt host and Android kits
+        run: |
+          pipx install aqtinstall
+          export PATH="$HOME/.local/bin:$PATH"
+          aqt install-qt linux desktop "$QT_VERSION" linux_gcc_64 \
+            -m $QT_ANDROID_MODULES -O "$HOME/Qt"
+          aqt install-qt all_os android "$QT_VERSION" android_arm64_v8a \
+            -m $QT_ANDROID_MODULES -O "$HOME/Qt"
+
+      - name: Restore native dependencies
+        id: deps
+        uses: actions/cache/restore@v4
+        with:
+          path: third_party/prebuilt
+          key: v2-android-deps-${{ env.ABI }}-${{ env.NDK_VERSION }}-${{ hashFiles('third_party/build-android.sh', 'third_party/build-skia.sh') }}
+
+      - name: Build native dependencies and Skia
+        if: steps.deps.outputs.cache-hit != 'true'
+        run: |
+          ./third_party/build-android.sh "$ABI"
+          JOBS="$(nproc)" ./third_party/build-skia.sh "android-$ABI"
+
+      - name: Cache native dependencies before compiling app
+        if: steps.deps.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: third_party/prebuilt
+          key: ${{ steps.deps.outputs.cache-primary-key }}
+
+      - name: Drop dependency sources after build
+        if: steps.deps.outputs.cache-hit != 'true'
+        run: rm -rf third_party/src
+
+      - name: Restore compiler cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.cache/ccache
+          key: reels-ccache-${{ env.QT_VERSION }}-${{ env.NDK_VERSION }}-${{ inputs.artifact_name }}-${{ inputs.source_ref }}-${{ github.run_id }}
+          restore-keys: reels-ccache-${{ env.QT_VERSION }}-${{ env.NDK_VERSION }}-${{ inputs.artifact_name }}-
+
+      - name: Build complete arm64 APK
+        env:
+          DRIFT_ANDROID_PACKAGE_NAME: ${{ inputs.package_name }}
+          DRIFT_ANDROID_APP_NAME: ${{ inputs.app_name }}
+          DRIFT_DISTRIBUTION: android-github
+          CMAKE_C_COMPILER_LAUNCHER: ccache
+          CMAKE_CXX_COMPILER_LAUNCHER: ccache
+          CCACHE_MAXSIZE: 2G
+        run: |
+          export QT_ANDROID_ROOT="$HOME/Qt/$QT_VERSION/android_arm64_v8a"
+          export QT_HOST_PATH="$HOME/Qt/$QT_VERSION/gcc_64"
+          export SKIP_APK=0 BUILD_AAB=0
+          ./scripts/build.sh "$ABI" Release
+          ccache -s
+
+      - name: Save compiler cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.cache/ccache
+          key: reels-ccache-${{ env.QT_VERSION }}-${{ env.NDK_VERSION }}-${{ inputs.artifact_name }}-${{ inputs.source_ref }}-${{ github.run_id }}
+
+      - name: Sign and verify installable APK
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          PACKAGE_NAME: ${{ inputs.package_name }}
+          ARTIFACT_NAME: ${{ inputs.artifact_name }}
+        run: |
+          set -euo pipefail
+          BT="$ANDROID_SDK_ROOT/build-tools/36.0.0"
+          APK="$(find "build/android-$ABI/android-build/build/outputs/apk/release" -name '*.apk' -print -quit)"
+          test -n "$APK"
+          KS="$RUNNER_TEMP/reels-signing.jks"
+          trap 'rm -f "$KS"' EXIT
+          if [ -n "$KEYSTORE_B64" ]; then
+            test -n "$KEYSTORE_PASSWORD"
+            test -n "$KEY_ALIAS"
+            printf '%s' "$KEYSTORE_B64" | base64 -d > "$KS"
+          else
+            # Public Android debug password, not a user or production secret.
+            export KEYSTORE_PASSWORD=android KEY_ALIAS=androiddebugkey
+            keytool -genkeypair -keystore "$KS" -storepass:env KEYSTORE_PASSWORD \
+              -keypass:env KEYSTORE_PASSWORD -alias "$KEY_ALIAS" \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -dname 'CN=Android Debug,O=Android,C=US' -noprompt
+            echo '::notice::Test APK uses a disposable debug signing certificate.'
+          fi
+          mkdir -p dist
+          OUT="dist/$ARTIFACT_NAME.apk"
+          "$BT/zipalign" -p -f 4 "$APK" "$RUNNER_TEMP/aligned.apk"
+          "$BT/apksigner" sign --ks "$KS" --ks-pass env:KEYSTORE_PASSWORD \
+            --key-pass env:KEYSTORE_PASSWORD --ks-key-alias "$KEY_ALIAS" \
+            --out "$OUT" "$RUNNER_TEMP/aligned.apk"
+          "$BT/zipalign" -c -p 4 "$OUT"
+          "$BT/apksigner" verify --print-certs "$OUT"
+          "$BT/aapt" dump badging "$OUT" > dist/apk-badging.txt
+          grep -F "package: name='$PACKAGE_NAME'" dist/apk-badging.txt
+          grep -F "native-code: 'arm64-v8a'" dist/apk-badging.txt
+          cp source-commit.txt dist/
+          sha256sum "$OUT" > "dist/$ARTIFACT_NAME.apk.sha256"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.artifact_name }}
+          path: dist/
+          retention-days: 14
+          if-no-files-found: error
